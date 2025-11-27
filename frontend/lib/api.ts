@@ -103,10 +103,15 @@ class ApiClient {
     return this.client.get('/access-requests/', { params });
   }
 
-  async approveAccessRequest(id: number, role?: string, unitId?: number) {
+  async approveAccessRequest(id: number, role?: string, unitId?: number, profileData?: any) {
     const data: any = {};
     if (role) data.role = role;
     if (unitId) data.unit_id = unitId;
+    if (profileData) {
+      if (profileData.id_number !== undefined) data.id_number = profileData.id_number;
+      if (profileData.address !== undefined) data.address = profileData.address;
+      if (profileData.city_id !== undefined) data.city_id = profileData.city_id;
+    }
     return this.client.post(`/access-requests/${id}/approve/`, data);
   }
 

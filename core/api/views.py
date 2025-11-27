@@ -401,6 +401,22 @@ def approve_access_request_view(request, request_id):
         else:
             profile.unit = None
     
+    # Update profile details if provided
+    if 'id_number' in request.data:
+        profile.id_number = request.data['id_number']
+    if 'address' in request.data:
+        profile.address = request.data['address']
+    if 'city_id' in request.data:
+        city_id = request.data.get('city_id')
+        if city_id:
+            try:
+                city = Location.objects.get(id=city_id)
+                profile.city = city
+            except Location.DoesNotExist:
+                pass  # Invalid city_id, keep existing city
+        else:
+            profile.city = None
+    
     profile.save()
     
     # Send approval notification
