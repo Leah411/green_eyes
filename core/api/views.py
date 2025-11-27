@@ -1,0 +1,813 @@
+from rest_framework import status, viewsets, permissions
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.core.cache import cache
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.http import HttpResponse, JsonResponse
+from datetime import timedelta
+import random
+import pandas as pd
+from io import BytesIO
+from django.db.models import Q, Count, Prefetch
+from django.contrib.auth import get_user_model
+
+from core.models import (
+    User, Profile, Unit, Location, AvailabilityReport, 
+    AccessRequest, OTPToken
+)
+from core.permissions import (
+    IsApproved, IsManager, IsUnitManager,
+    IsBranchManager, IsSectionManager, IsTeamManager
+)
+from core.api.serializers import (
+    UserSignupSerializer,
+    UserLoginSerializer,
+    UserSerializer,
+    ProfileSerializer,
+    UnitSerializer,
+    LocationSerializer,
+    OTPSerializer,
+    OTPVerifySerializer,
+    AvailabilityReportSerializer,
+    AccessRequestSerializer,
+    AlertSendSerializer
+)
+from django.conf import settings
+
+User = get_user_model()
+
+
+# ==================== Helper Functions ====================
+
+def generate_otp_token():
+    """Generate a 6-digit OTP token"""
+    return str(random.randint(100000, 999999))
+
+
+def check_otp_rate_limit(user):
+    """Check if user has exceeded OTP rate limit"""
+    cache_key = f'otp_rate_limit_{user.id}'
+    count = cache.get(cache_key, 0)
+    
+    if count >= settings.OTP_RATE_LIMIT:
+        return False
+    
+    cache.set(cache_key, count + 1, 3600)  # 1 hour expiry
+    return True
+
+
+def send_otp_email(user, otp_token, purpose='login'):
+    """Send OTP email to user"""
+    import logging
+    logger = logging.getLogger('core')
+    
+    try:
+        # Try to load HTML template, fallback to plain text
+        try:
+            template_name = 'otp_login.html'
+            html_message = render_to_string(template_name, {
+                'user': user,
+                'otp_code': otp_token,
+                'expiry_minutes': settings.OTP_EXPIRY_MINUTES,
+            })
+            message = None
+        except Exception as e:
+            logger.warning(f"Template error: {e}")
+            html_message = None
+            message = f'''
+            Hello {user.get_full_name() or user.username},
+            
+            Your OTP code for account verification is: {otp_token}
+            
+            This code will expire in {settings.OTP_EXPIRY_MINUTES} minutes.
+            
+            If you did not request this code, please ignore this email.
+            
+            Best regards,
+            Yirok Team
+            '''
+        
+        send_mail(
+            subject='Your OTP Code for Account Verification',
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        logger.info(f"OTP email sent successfully to {user.email}")
+        return True, None
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error sending OTP email to {user.email}: {error_msg}", exc_info=True)
+        return False, error_msg
+
+
+def send_approval_notification(user):
+    """Send approval notification email"""
+    try:
+        try:
+            html_message = render_to_string('approval_notification.html', {
+                'user': user,
+            })
+            message = None
+        except:
+            html_message = None
+            message = f'''
+            Hello {user.get_full_name() or user.username},
+            
+            Your access request has been approved!
+            
+            You can now log in to the system using your credentials.
+            
+            Best regards,
+            Yirok Team
+            '''
+        
+        send_mail(
+            subject='Access Request Approved',
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f"Error sending approval notification: {e}")
+        return False
+
+
+# ==================== Authentication Endpoints ====================
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_view(request):
+    """
+    User registration endpoint.
+    Creates a new user account (is_active=True but is_approved=False) + AccessRequest.
+    """
+    serializer = UserSignupSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        
+        # Get the created access request
+        access_request = AccessRequest.objects.filter(user=user).latest('submitted_at')
+        
+        return Response({
+            'message': 'User created successfully. Waiting for admin approval.',
+            'user_id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'access_request_id': access_request.id,
+            'status': 'pending'
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_otp_view(request):
+    """
+    Request OTP endpoint.
+    Creates OTPToken (6-digit code), rate-limited per user (5 per hour), sends via email.
+    """
+    import logging
+    logger = logging.getLogger('core')
+    
+    logger.info(f"OTP request received: {request.data}")
+    
+    serializer = OTPSerializer(data=request.data)
+    if not serializer.is_valid():
+        logger.warning(f"OTP request validation failed: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    email = serializer.validated_data['email']
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({
+            'error': 'User with this email does not exist.'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check if user is approved (serializer should catch this, but double-check)
+    if not user.is_approved:
+        return Response({
+            'error': 'User account is not approved yet. Please wait for admin approval.',
+            'status': 'pending'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    # Check rate limit
+    if not check_otp_rate_limit(user):
+        return Response({
+            'error': 'Rate limit exceeded. Please try again later.'
+        }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    
+    # Generate OTP
+    otp_token = generate_otp_token()
+    expires_at = timezone.now() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
+    
+    # Create OTP record
+    otp = OTPToken.objects.create(
+        user=user,
+        token=otp_token,
+        purpose='login',
+        expires_at=expires_at
+    )
+    
+    # Send OTP via email
+    email_sent, error_msg = send_otp_email(user, otp_token, purpose='login')
+    
+    if not email_sent:
+        # If email sending failed, still return the OTP (for development/testing)
+        # but inform the user about the issue
+        return Response({
+            'error': f'Failed to send OTP email. {error_msg or "Please check email configuration."}',
+            'message': 'OTP generated but email sending failed. Check server logs for details.',
+            'otp_code': otp_token if settings.DEBUG else None,  # Only show OTP in debug mode
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return Response({
+        'message': 'OTP sent to your email address.',
+        'expires_in_minutes': settings.OTP_EXPIRY_MINUTES
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_otp_view(request):
+    """
+    Verify OTP endpoint.
+    Validates token → returns JWT access + refresh tokens.
+    """
+    serializer = OTPVerifySerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    user = serializer.validated_data['user']
+    otp = serializer.validated_data['otp']
+    
+    # Mark OTP as used
+    otp.mark_as_used()
+    
+    # Generate JWT tokens
+    refresh = RefreshToken.for_user(user)
+    access_token = str(refresh.access_token)
+    refresh_token = str(refresh)
+    
+    return Response({
+        'message': 'OTP verified successfully.',
+        'access': access_token,
+        'refresh': refresh_token,
+        'user': UserSerializer(user).data
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_view(request):
+    """
+    Login endpoint (email + password).
+    Note: After approval, users should use request-otp + verify-otp flow.
+    This endpoint is for backward compatibility or direct login without OTP.
+    """
+    serializer = UserLoginSerializer(data=request.data, context={'request': request})
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    user = serializer.validated_data['user']
+    
+    # Check if user is approved
+    if not user.is_approved:
+        return Response({
+            'error': 'Your account is pending admin approval.',
+            'status': 'pending'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    # Generate JWT tokens
+    refresh = RefreshToken.for_user(user)
+    access_token = str(refresh.access_token)
+    refresh_token = str(refresh)
+    
+    return Response({
+        'message': 'Login successful',
+        'access': access_token,
+        'refresh': refresh_token,
+        'user': UserSerializer(user).data
+    }, status=status.HTTP_200_OK)
+
+
+# ==================== Access Request Endpoints ====================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_access_requests_view(request):
+    """
+    List access requests.
+    Managers can see pending requests in their unit.
+    Admins can see all requests.
+    """
+    if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
+        return Response({
+            'error': 'Only staff members and managers can view access requests.'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    queryset = AccessRequest.objects.select_related('user', 'approved_by').all()
+    
+    # Filter by status
+    status_filter = request.query_params.get('status', None)
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+    
+    # Filter by unit (for managers)
+    if hasattr(request.user, 'profile') and request.user.profile.unit and not request.user.is_staff:
+        user_unit = request.user.profile.unit
+        # Get all users in this unit and its descendants
+        descendant_units = user_unit.get_descendants()
+        all_units = [user_unit] + descendant_units
+        unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+        queryset = queryset.filter(user_id__in=unit_user_ids)
+    
+    # Filter by unit_id query param
+    unit_id = request.query_params.get('unit', None)
+    if unit_id:
+        try:
+            unit = Unit.objects.get(id=unit_id)
+            descendant_units = unit.get_descendants()
+            all_units = [unit] + descendant_units
+            unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+            queryset = queryset.filter(user_id__in=unit_user_ids)
+        except Unit.DoesNotExist:
+            pass
+    
+    serializer = AccessRequestSerializer(queryset.order_by('-submitted_at'), many=True)
+    return Response({
+        'count': len(serializer.data),
+        'results': serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def approve_access_request_view(request, request_id):
+    """
+    Approve access request.
+    Admin/manager approves → sets user.is_approved=True and sends approval email & OTP.
+    """
+    if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
+        return Response({
+            'error': 'Only staff members and managers can approve access requests.'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        access_request = AccessRequest.objects.select_related('user').get(id=request_id)
+    except AccessRequest.DoesNotExist:
+        return Response({
+            'error': 'Access request not found.'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    if access_request.status == 'approved':
+        return Response({
+            'error': 'Access request already approved.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Approve the request
+    access_request.approve(request.user)
+    
+    # Send approval notification
+    send_approval_notification(access_request.user)
+    
+    # Generate and send OTP
+    otp_token = generate_otp_token()
+    expires_at = timezone.now() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
+    otp = OTPToken.objects.create(
+        user=access_request.user,
+        token=otp_token,
+        purpose='login',
+        expires_at=expires_at
+    )
+    email_sent, error_msg = send_otp_email(access_request.user, otp_token, purpose='login')
+    
+    response_data = {
+        'message': 'Access request approved.',
+        'access_request': AccessRequestSerializer(access_request).data
+    }
+    
+    if email_sent:
+        response_data['message'] = 'Access request approved. OTP sent to user email.'
+    else:
+        response_data['warning'] = f'Access request approved but OTP email failed to send: {error_msg or "Check email configuration."}'
+        if settings.DEBUG:
+            response_data['otp_code'] = otp_token
+    
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reject_access_request_view(request, request_id):
+    """
+    Reject access request.
+    """
+    if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
+        return Response({
+            'error': 'Only staff members and managers can reject access requests.'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        access_request = AccessRequest.objects.get(id=request_id)
+    except AccessRequest.DoesNotExist:
+        return Response({
+            'error': 'Access request not found.'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    reason = request.data.get('reason', '')
+    access_request.reject(request.user, reason=reason)
+    
+    return Response({
+        'message': 'Access request rejected.',
+        'access_request': AccessRequestSerializer(access_request).data
+    }, status=status.HTTP_200_OK)
+
+
+# ==================== Reports Endpoints ====================
+
+@api_view(['GET'])
+@permission_classes([IsApproved])
+def list_reports_view(request):
+    """
+    List availability reports.
+    RBAC applied: users see their own, managers see their unit's reports.
+    """
+    queryset = AvailabilityReport.objects.select_related('user').all()
+    
+    # Regular users see only their own reports
+    if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
+        queryset = queryset.filter(user=request.user)
+    else:
+        # Managers see reports from their unit
+        if hasattr(request.user, 'profile') and request.user.profile.unit:
+            user_unit = request.user.profile.unit
+            descendant_units = user_unit.get_descendants()
+            all_units = [user_unit] + descendant_units
+            unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+            queryset = queryset.filter(user_id__in=unit_user_ids)
+    
+    # Filter by unit
+    unit_id = request.query_params.get('unit', None)
+    if unit_id:
+        try:
+            unit = Unit.objects.get(id=unit_id)
+            descendant_units = unit.get_descendants()
+            all_units = [unit] + descendant_units
+            unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+            queryset = queryset.filter(user_id__in=unit_user_ids)
+        except Unit.DoesNotExist:
+            pass
+    
+    # Filter by date
+    date_filter = request.query_params.get('date', None)
+    if date_filter:
+        queryset = queryset.filter(date=date_filter)
+    
+    # Filter by date range
+    date_from = request.query_params.get('from', None)
+    date_to = request.query_params.get('to', None)
+    if date_from:
+        queryset = queryset.filter(date__gte=date_from)
+    if date_to:
+        queryset = queryset.filter(date__lte=date_to)
+    
+    serializer = AvailabilityReportSerializer(queryset.order_by('-date', '-submitted_at'), many=True)
+    return Response({
+        'count': len(serializer.data),
+        'results': serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsApproved])
+def create_report_view(request):
+    """
+    Create availability report.
+    """
+    serializer = AvailabilityReportSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        report = serializer.save()
+        return Response(
+            AvailabilityReportSerializer(report).data,
+            status=status.HTTP_201_CREATED
+        )
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsApproved])
+def export_reports_view(request):
+    """
+    Export availability reports to Excel.
+    RBAC applied: users export their own, managers export their unit's reports.
+    """
+    queryset = AvailabilityReport.objects.select_related('user', 'user__profile', 'user__profile__unit').all()
+    
+    # Apply same filters as list_reports_view
+    if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
+        queryset = queryset.filter(user=request.user)
+    else:
+        if hasattr(request.user, 'profile') and request.user.profile.unit:
+            user_unit = request.user.profile.unit
+            descendant_units = user_unit.get_descendants()
+            all_units = [user_unit] + descendant_units
+            unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+            queryset = queryset.filter(user_id__in=unit_user_ids)
+    
+    # Filter by unit
+    unit_id = request.query_params.get('unit', None)
+    if unit_id:
+        try:
+            unit = Unit.objects.get(id=unit_id)
+            descendant_units = unit.get_descendants()
+            all_units = [unit] + descendant_units
+            unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+            queryset = queryset.filter(user_id__in=unit_user_ids)
+        except Unit.DoesNotExist:
+            pass
+    
+    # Filter by date range
+    date_from = request.query_params.get('from', None)
+    date_to = request.query_params.get('to', None)
+    if date_from:
+        queryset = queryset.filter(date__gte=date_from)
+    if date_to:
+        queryset = queryset.filter(date__lte=date_to)
+    
+    # Prepare data for Excel
+    data = []
+    for report in queryset:
+        unit_name = report.user.profile.unit.name if hasattr(report.user, 'profile') and report.user.profile.unit else 'N/A'
+        data.append({
+            'User': report.user.username,
+            'Email': report.user.email,
+            'Unit': unit_name,
+            'Date': report.date,
+            'Status': report.get_status_display(),
+            'Notes': report.notes,
+            'Submitted At': report.submitted_at,
+        })
+    
+    # Create Excel file
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Availability Reports')
+    
+    output.seek(0)
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="availability_reports_{timezone.now().date()}.xlsx"'
+    return response
+
+
+# ==================== Alerts Endpoint ====================
+
+@api_view(['POST'])
+@permission_classes([IsManager])
+def send_alert_view(request):
+    """
+    Send email alerts to users/managers in a unit.
+    RBAC: only manager roles can send alerts.
+    """
+    serializer = AlertSendSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    unit_id = serializer.validated_data.get('unit_id')
+    subject = serializer.validated_data['subject']
+    message = serializer.validated_data['message']
+    send_to = serializer.validated_data['send_to']
+    
+    # Determine recipients
+    recipients = []
+    if unit_id:
+        unit = Unit.objects.get(id=unit_id)
+        descendant_units = unit.get_descendants()
+        all_units = [unit] + descendant_units
+        
+        if 'all' in send_to or 'users' in send_to:
+            user_profiles = Profile.objects.filter(unit__in=all_units)
+            recipients.extend([p.user.email for p in user_profiles if p.user.email])
+        
+        if 'all' in send_to or 'managers' in send_to:
+            manager_profiles = Profile.objects.filter(
+                unit__in=all_units,
+                role__in=['team_manager', 'section_manager', 'branch_manager', 'unit_manager', 'admin']
+            )
+            recipients.extend([p.user.email for p in manager_profiles if p.user.email])
+    else:
+        # Send to all users/managers (admin only)
+        if not request.user.is_staff:
+            return Response({
+                'error': 'Only admins can send alerts to all users.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        if 'all' in send_to or 'users' in send_to:
+            recipients.extend([u.email for u in User.objects.filter(is_approved=True, email__isnull=False).exclude(email='')])
+        
+        if 'all' in send_to or 'managers' in send_to:
+            manager_profiles = Profile.objects.filter(
+                role__in=['team_manager', 'section_manager', 'branch_manager', 'unit_manager', 'admin']
+            )
+            recipients.extend([p.user.email for p in manager_profiles if p.user.email])
+    
+    # Remove duplicates
+    recipients = list(set(recipients))
+    
+    # Generate personalized link token (simple approach: use user's ID + timestamp hash)
+    # In production, use a more secure token generation
+    from hashlib import md5
+    from datetime import datetime
+    
+    sent_count = 0
+    for email in recipients:
+        try:
+            user = User.objects.get(email=email)
+            # Generate a simple token for one-click login (in production, use proper JWT or signed token)
+            token = md5(f"{user.id}{datetime.now().isoformat()}{settings.SECRET_KEY}".encode()).hexdigest()[:16]
+            
+            # Link to home page
+            home_link = f"{request.build_absolute_uri('/')}home"
+            
+            try:
+                html_message = render_to_string('alert_email.html', {
+                    'user': user,
+                    'subject': subject,
+                    'message': message,
+                    'home_link': home_link,
+                })
+                plain_message = f"{message}\n\nקישור לעמוד הבית: {home_link}"
+            except:
+                html_message = None
+                plain_message = f"{message}\n\nקישור לעמוד הבית: {home_link}"
+            
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            sent_count += 1
+        except Exception as e:
+            print(f"Error sending alert to {email}: {e}")
+    
+    return Response({
+        'message': f'Alert sent to {sent_count} recipients.',
+        'recipients_count': sent_count,
+        'total_recipients': len(recipients)
+    }, status=status.HTTP_200_OK)
+
+
+# ==================== Health Check ====================
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check_view(request):
+    """
+    Health check endpoint.
+    """
+    return Response({
+        'status': 'healthy',
+        'timestamp': timezone.now().isoformat(),
+        'version': '1.0.0'
+    }, status=status.HTTP_200_OK)
+
+# ==================== ViewSets ====================
+
+class UserViewSet(viewsets.ModelViewSet):
+    """ViewSet for User model"""
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Regular users see only themselves
+        if not (self.request.user.is_staff or hasattr(self.request.user, 'profile') and self.request.user.profile.is_manager()):
+            queryset = queryset.filter(id=self.request.user.id)
+        return queryset
+
+
+class ProfileViewSet(viewsets.ModelViewSet):
+    """ViewSet for Profile model"""
+    queryset = Profile.objects.select_related('user', 'unit').all()
+    serializer_class = ProfileSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Regular users see only their own profile
+        if not (self.request.user.is_staff or hasattr(self.request.user, 'profile') and self.request.user.profile.is_manager()):
+            queryset = queryset.filter(user=self.request.user)
+        return queryset
+    
+    def perform_update(self, serializer):
+        profile = serializer.instance
+        user = profile.user
+        
+        # Update user fields from request data if present
+        user_data = self.request.data
+        if 'first_name' in user_data:
+            user.first_name = user_data['first_name']
+        if 'last_name' in user_data:
+            user.last_name = user_data['last_name']
+        if 'phone' in user_data:
+            user.phone = user_data['phone']
+        user.save()
+        
+        serializer.save()
+
+
+class UnitViewSet(viewsets.ModelViewSet):
+    """ViewSet for Unit model"""
+    queryset = Unit.objects.prefetch_related('children', 'members').all()
+    serializer_class = UnitSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=True, methods=['get'])
+    def members(self, request, pk=None):
+        """Get all members of a unit"""
+        unit = self.get_object()
+        members = Profile.objects.filter(unit=unit).select_related('user')
+        serializer = ProfileSerializer(members, many=True)
+        return Response(serializer.data)
+
+
+class LocationViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for Location model (cities, towns, kibbutzim)"""
+    queryset = Location.objects.all()
+    serializer_class = LocationSerializer
+    permission_classes = [AllowAny]  # Anyone can view locations
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Optional filtering by type
+        location_type = self.request.query_params.get('type', None)
+        if location_type:
+            queryset = queryset.filter(location_type=location_type)
+        # Optional search by name
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+        return queryset.order_by('name')
+
+
+class AvailabilityReportViewSet(viewsets.ModelViewSet):
+    """ViewSet for AvailabilityReport model"""
+    queryset = AvailabilityReport.objects.select_related('user').all()
+    serializer_class = AvailabilityReportSerializer
+    permission_classes = [IsApproved]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Regular users see only their own reports
+        if not (self.request.user.is_staff or hasattr(self.request.user, 'profile') and self.request.user.profile.is_manager()):
+            queryset = queryset.filter(user=self.request.user)
+        return queryset
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class AccessRequestViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for AccessRequest model (read-only, use custom actions for approve/reject)"""
+    queryset = AccessRequest.objects.select_related('user', 'approved_by').all()
+    serializer_class = AccessRequestSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if not (self.request.user.is_staff or hasattr(self.request.user, 'profile') and self.request.user.profile.is_manager()):
+            queryset = queryset.filter(user=self.request.user)
+        return queryset
+    
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve access request"""
+        return approve_access_request_view(request, pk)
+    
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Reject access request"""
+        return reject_access_request_view(request, pk)
+

@@ -1,0 +1,68 @@
+{
+  "common": {
+    "welcome": "Welcome",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "approve": "Approve",
+    "reject": "Reject",
+    "export": "Export",
+    "search": "Search",
+    "filter": "Filter",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "username": "Username",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "phone": "Phone",
+    "idNumber": "ID Number",
+    "loginTitle": "Login to System",
+    "registerTitle": "Register to System",
+    "otpTitle": "Verify Code",
+    "otpCode": "OTP Code",
+    "requestOTP": "Request OTP",
+    "verifyOTP": "Verify OTP",
+    "otpSent": "OTP code sent to your email",
+    "invalidOTP": "Invalid OTP code",
+    "pendingApproval": "Account pending admin approval"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "userDashboard": "User Dashboard",
+    "managerDashboard": "Manager Dashboard",
+    "adminDashboard": "Admin Dashboard",
+    "availabilityReports": "Availability Reports",
+    "submitReport": "Submit Availability Report",
+    "pendingApprovals": "Pending Approvals",
+    "users": "Users",
+    "reports": "Reports",
+    "alerts": "Alerts"
+  },
+  "reports": {
+    "date": "Date",
+    "status": "Status",
+    "notes": "Notes",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "partial": "Partial Availability",
+    "pending": "Pending"
+  },
+  "units": {
+    "unit": "Unit",
+    "branch": "Branch",
+    "section": "Section",
+    "team": "Team"
+  }
+}
+

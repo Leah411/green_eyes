@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>קוד אימות - ירוק בעיניים</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            direction: rtl;
+            text-align: right;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2d8659;
+            margin: 0;
+        }
+        .otp-code {
+            background-color: #f0f8f4;
+            border: 2px dashed #2d8659;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        .otp-code h2 {
+            color: #2d8659;
+            font-size: 32px;
+            letter-spacing: 5px;
+            margin: 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-right: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ירוק בעיניים</h1>
+        </div>
+        
+        <p>שלום {{ user.get_full_name|default:user.username }},</p>
+        
+        <p>קיבלנו בקשה לאימות חשבון. הקוד שלך הוא:</p>
+        
+        <div class="otp-code">
+            <h2>{{ otp_code }}</h2>
+        </div>
+        
+        <div class="warning">
+            <strong>שים לב:</strong> קוד זה תקף למשך {{ expiry_minutes }} דקות בלבד.
+        </div>
+        
+        <p>אם לא ביקשת קוד זה, אנא התעלם מהמייל הזה.</p>
+        
+        <p>בברכה,<br>צוות ירוק בעיניים</p>
+        
+        <div class="footer">
+            <p>זהו מייל אוטומטי, אנא אל תשיב למייל זה.</p>
+        </div>
+    </div>
+</body>
+</html>
+
