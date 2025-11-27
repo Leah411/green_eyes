@@ -361,6 +361,7 @@ def approve_access_request_view(request, request_id):
     """
     Approve access request.
     Admin/manager approves → sets user.is_approved=True and sends approval email & OTP.
+    Can also set role and unit_id for the user.
     """
     if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
         return Response({
@@ -381,6 +382,26 @@ def approve_access_request_view(request, request_id):
     
     # Approve the request
     access_request.approve(request.user)
+    
+    # Update user role and unit if provided
+    user = access_request.user
+    profile, created = Profile.objects.get_or_create(user=user)
+    
+    if 'role' in request.data:
+        profile.role = request.data['role']
+    
+    if 'unit_id' in request.data:
+        unit_id = request.data.get('unit_id')
+        if unit_id:
+            try:
+                unit = Unit.objects.get(id=unit_id)
+                profile.unit = unit
+            except Unit.DoesNotExist:
+                pass  # Invalid unit_id, keep existing unit
+        else:
+            profile.unit = None
+    
+    profile.save()
     
     # Send approval notification
     send_approval_notification(access_request.user)
@@ -706,6 +727,74 @@ class UserViewSet(viewsets.ModelViewSet):
         if not (self.request.user.is_staff or hasattr(self.request.user, 'profile') and self.request.user.profile.is_manager()):
             queryset = queryset.filter(id=self.request.user.id)
         return queryset
+    
+    @action(detail=False, methods=['get'], url_path='approved')
+    def approved(self, request):
+        """List all approved users"""
+        if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
+            return Response({
+                'error': 'Only staff members and managers can view approved users.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        users = User.objects.filter(is_approved=True).select_related('profile', 'profile__unit')
+        
+        # Filter by unit (for managers)
+        if hasattr(request.user, 'profile') and request.user.profile.unit and not request.user.is_staff:
+            user_unit = request.user.profile.unit
+            descendant_units = user_unit.get_descendants()
+            all_units = [user_unit] + descendant_units
+            unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+            users = users.filter(id__in=unit_user_ids)
+        
+        serializer = UserSerializer(users.order_by('-date_joined'), many=True)
+        return Response({
+            'count': len(serializer.data),
+            'results': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['patch'], url_path='update-permissions')
+    def update_permissions(self, request, pk=None):
+        """Update user permissions (role and unit)"""
+        if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
+            return Response({
+                'error': 'Only staff members and managers can update user permissions.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            user = self.get_object()
+        except User.DoesNotExist:
+            return Response({
+                'error': 'User not found.'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get or create profile
+        profile, created = Profile.objects.get_or_create(user=user)
+        
+        # Update role if provided
+        if 'role' in request.data:
+            profile.role = request.data['role']
+        
+        # Update unit if provided
+        if 'unit_id' in request.data:
+            unit_id = request.data['unit_id']
+            if unit_id:
+                try:
+                    unit = Unit.objects.get(id=unit_id)
+                    profile.unit = unit
+                except Unit.DoesNotExist:
+                    return Response({
+                        'error': 'Unit does not exist.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                profile.unit = None
+        
+        profile.save()
+        
+        serializer = UserSerializer(user)
+        return Response({
+            'message': 'User permissions updated successfully.',
+            'user': serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 class ProfileViewSet(viewsets.ModelViewSet):
@@ -768,8 +857,9 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
         # Optional search by name
         search = self.request.query_params.get('search', None)
         if search:
-            queryset = queryset.filter(name__icontains=search)
-        return queryset.order_by('name')
+            queryset = queryset.filter(Q(name__icontains=search) | Q(name_he__icontains=search))
+        # Order by Hebrew name for better user experience
+        return queryset.order_by('name_he', 'name')
 
 
 class AvailabilityReportViewSet(viewsets.ModelViewSet):
