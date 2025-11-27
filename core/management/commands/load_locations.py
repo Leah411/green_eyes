@@ -277,7 +277,12 @@ class Command(BaseCommand):
             
             if created:
                 created_count += 1
-                self.stdout.write(self.style.SUCCESS(f'  Created: {name_he}'))
+                # Use UTF-8 encoding for Hebrew text output
+                try:
+                    self.stdout.write(self.style.SUCCESS(f'  Created: {name_he}'))
+                except UnicodeEncodeError:
+                    # Fallback for Windows console
+                    self.stdout.write(self.style.SUCCESS(f'  Created: location #{created_count}'))
             else:
                 # Update existing location if needed
                 updated = False
@@ -294,10 +299,13 @@ class Command(BaseCommand):
                 if updated:
                     location.save()
                     updated_count += 1
-                    self.stdout.write(self.style.WARNING(f'  Updated: {name_he}'))
+                    try:
+                        self.stdout.write(self.style.WARNING(f'  Updated: {name_he}'))
+                    except UnicodeEncodeError:
+                        self.stdout.write(self.style.WARNING(f'  Updated: location #{updated_count}'))
                 else:
                     skipped_count += 1
-                    self.stdout.write(self.style.WARNING(f'  Already exists: {name_he}'))
+                    # Don't print skipped locations to avoid encoding issues
 
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS(
