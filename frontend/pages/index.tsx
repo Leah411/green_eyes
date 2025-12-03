@@ -104,12 +104,29 @@ export default function Home() {
         router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
       }, 1500);
     } catch (err: any) {
-      console.error('OTP request error:', err.response?.data);
+      // Only log full error in development, avoid logging sensitive info
+      if (process.env.NODE_ENV === 'development') {
+        console.error('OTP request error:', err);
+      }
       
       let errorMessage = 'שגיאה בשליחת קוד אימות. אנא נסה שוב.';
       
-      // Handle serializer validation errors
-      if (err.response?.data?.email) {
+      // Handle network errors (connection refused, timeout, etc.)
+      if (!err.response) {
+        const errorCode = err.code || '';
+        const errMsg = err.message || '';
+        
+        if (errorCode === 'ERR_NETWORK' || errorCode === 'ERR_CONNECTION_REFUSED' || 
+            errMsg.includes('CONNECTION_REFUSED') || errMsg.includes('Network Error')) {
+          errorMessage = 'לא ניתן להתחבר לשרת. אנא ודא שהשרת פועל ונסה שוב.';
+        } else if (errMsg.includes('timeout') || errorCode.includes('TIMEOUT')) {
+          errorMessage = 'פג תוקף החיבור. אנא נסה שוב.';
+        } else {
+          errorMessage = 'שגיאת חיבור. אנא ודא שהשרת פועל ונסה שוב.';
+        }
+      } 
+      // Handle API response errors
+      else if (err.response?.data?.email) {
         const emailError = Array.isArray(err.response.data.email) 
           ? err.response.data.email[0] 
           : err.response.data.email;
@@ -123,7 +140,7 @@ export default function Home() {
           } else {
             errorMessage = emailError;
           }
-      } else {
+        } else {
           errorMessage = 'שגיאה באימייל. אנא בדוק שהאימייל תקין.';
         }
       } else if (err.response?.data?.error) {

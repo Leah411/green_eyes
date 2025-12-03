@@ -12,23 +12,19 @@ export default function PermissionsDashboard() {
   const [userRole, setUserRole] = useState<string>('');
   const [showSidebar, setShowSidebar] = useState<boolean>(true);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [showRequestDetails, setShowRequestDetails] = useState(false);
+  const [showRequestForm, setShowRequestForm] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [showUserEdit, setShowUserEdit] = useState(false);
   const [units, setUnits] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
-  const [editingRole, setEditingRole] = useState<string>('');
-  const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
-  const [editingIdNumber, setEditingIdNumber] = useState<string>('');
-  const [editingAddress, setEditingAddress] = useState<string>('');
-  const [editingCityId, setEditingCityId] = useState<number | null>(null);
   
   // For request form
   const [requestRole, setRequestRole] = useState<string>('user');
   const [requestUnitId, setRequestUnitId] = useState<number | null>(null);
-  const [requestIdNumber, setRequestIdNumber] = useState<string>('');
-  const [requestAddress, setRequestAddress] = useState<string>('');
-  const [requestCityId, setRequestCityId] = useState<number | null>(null);
+  
+  // For user edit
+  const [editingRole, setEditingRole] = useState<string>('');
+  const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
 
   const roles = [
     { value: 'user', label: 'משתמש' },
@@ -75,7 +71,15 @@ export default function PermissionsDashboard() {
       setLoading(true);
       const profileRes = await api.getProfile();
       const profileData = profileRes.data.profile;
-      setUserRole(profileData?.role || '');
+      const role = profileData?.role || '';
+      setUserRole(role);
+
+      // Check if user has permission (only system_manager and unit_manager)
+      if (role !== 'system_manager' && role !== 'unit_manager') {
+        alert('אין לך הרשאה לגשת לדף זה. רק מנהל מערכת ומנהל יחידה יכולים לגשת.');
+        router.push('/home');
+        return;
+      }
 
       // Load pending access requests
       const requestsRes = await api.listAccessRequests({ status: 'pending' });
@@ -95,61 +99,49 @@ export default function PermissionsDashboard() {
     }
   };
 
-  const openRequestDetails = (request: any) => {
+  const openRequestForm = (request: any) => {
     setSelectedRequest(request);
+    // Get user data from registration (stored in user and profile)
     setRequestRole(request.user?.profile?.role || 'user');
-    setRequestUnitId(request.user?.profile?.unit?.id || null);
-    setRequestIdNumber(request.user?.profile?.id_number || '');
-    setRequestAddress(request.user?.profile?.address || '');
-    setRequestCityId(request.user?.profile?.city?.id || null);
-    setShowRequestDetails(true);
+    setRequestUnitId(request.user?.profile?.unit || null);
+    setShowRequestForm(true);
   };
 
   const openUserEdit = (user: any) => {
     setSelectedUser(user);
     setEditingRole(user.profile?.role || 'user');
-    setEditingUnitId(user.profile?.unit?.id || null);
-    setEditingIdNumber(user.profile?.id_number || '');
-    setEditingAddress(user.profile?.address || '');
-    setEditingCityId(user.profile?.city?.id || null);
+    setEditingUnitId(user.profile?.unit || null);
     setShowUserEdit(true);
   };
 
-  const handleSaveRequest = async () => {
+  const handleApproveRequest = async () => {
     if (!selectedRequest) return;
     try {
-      // Prepare profile data
-      const profileData: any = {};
-      if (requestIdNumber) profileData.id_number = requestIdNumber;
-      if (requestAddress) profileData.address = requestAddress;
-      if (requestCityId) profileData.city_id = requestCityId;
-      
-      // Approve the request with role, unit, and profile data
       await api.approveAccessRequest(
-        selectedRequest.id, 
-        requestRole, 
-        requestUnitId || undefined,
-        Object.keys(profileData).length > 0 ? profileData : undefined
+        selectedRequest.id,
+        requestRole,
+        requestUnitId || undefined
       );
       
-      setShowRequestDetails(false);
+      setShowRequestForm(false);
       setSelectedRequest(null);
       loadData();
-      alert('הבקשה אושרה והפרטים נשמרו בהצלחה');
+      alert('הבקשה אושרה בהצלחה');
     } catch (err: any) {
-      console.error('Error saving request:', err);
-      alert(err.response?.data?.error || 'שגיאה בשמירת הבקשה');
+      console.error('Error approving request:', err);
+      alert(err.response?.data?.error || 'שגיאה באישור הבקשה');
     }
   };
 
-  const handleReject = async (id: number, reason: string) => {
+  const handleRejectRequest = async () => {
+    if (!selectedRequest) return;
+    const reason = prompt('אנא הזן סיבת דחייה:');
     if (!reason || !reason.trim()) {
-      alert('אנא הזן סיבת דחייה');
       return;
     }
     try {
-      await api.rejectAccessRequest(id, reason);
-      setShowRequestDetails(false);
+      await api.rejectAccessRequest(selectedRequest.id, reason);
+      setShowRequestForm(false);
       setSelectedRequest(null);
       loadData();
       alert('הבקשה נדחתה');
@@ -161,30 +153,30 @@ export default function PermissionsDashboard() {
   const handleUpdateUserPermissions = async () => {
     if (!selectedUser) return;
     try {
-      // Update permissions (role and unit)
       await api.updateUserPermissions(selectedUser.id, {
         role: editingRole,
         unit_id: editingUnitId,
       });
       
-      // Update profile details if profile exists
-      if (selectedUser.profile?.id) {
-        const profileData: any = {};
-        if (editingIdNumber !== undefined) profileData.id_number = editingIdNumber;
-        if (editingAddress !== undefined) profileData.address = editingAddress;
-        if (editingCityId !== undefined) profileData.city = editingCityId;
-        
-        if (Object.keys(profileData).length > 0) {
-          await api.updateProfile(selectedUser.profile.id, profileData);
-        }
-      }
-      
       setShowUserEdit(false);
       setSelectedUser(null);
       loadData();
-      alert('הרשאות המשתמש ופרטי הפרופיל עודכנו בהצלחה');
+      alert('הרשאות המשתמש עודכנו בהצלחה');
     } catch (err: any) {
       alert(err.response?.data?.error || 'שגיאה בעדכון ההרשאות');
+    }
+  };
+
+  const handleDeleteUser = async (userId: number, username: string) => {
+    if (!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש ${username}? פעולה זו אינה הפיכה.`)) {
+      return;
+    }
+    try {
+      await api.deleteUser(userId);
+      loadData();
+      alert('המשתמש נמחק בהצלחה');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'שגיאה במחיקת המשתמש');
     }
   };
 
@@ -199,46 +191,39 @@ export default function PermissionsDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      <Sidebar showSidebar={showSidebar} setShowSidebar={setShowSidebar} userRole={userRole} />
-      
-      <div className={`transition-all duration-300 ${showSidebar ? 'mr-80' : 'mr-0'}`}>
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold text-gray-900">ניהול הרשאות</h1>
+    <div className="min-h-screen bg-gray-50 flex" dir="rtl">
+      {/* Main Content */}
+      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'mr-80' : ''}`}>
+        <header className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-green-600">ניהול משתמשים</h1>
+            <div className="flex gap-2">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                className="text-gray-600 hover:text-gray-900 text-2xl"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
-                ☰
+                {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/manager')}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                חזרה לדשבורד
               </button>
             </div>
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-500 text-right">בקשות ממתינות</h3>
-              <p className="text-3xl font-bold text-orange-600 mt-2 text-right">{accessRequests.length}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-500 text-right">משתמשים מאושרים</h3>
-              <p className="text-3xl font-bold text-green-600 mt-2 text-right">{approvedUsers.length}</p>
-            </div>
-          </div>
-
-          {/* Pending Access Requests */}
+        <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+          {/* Top Section - Access Requests */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-right">בקשות חדשות ממתינות לאישור</h2>
+              <h2 className="text-xl font-semibold text-right">בקשות כניסה</h2>
             </div>
             <div className="overflow-x-auto">
               {accessRequests.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
-                  אין בקשות ממתינות
+                  אין בקשות חדשות
                 </div>
               ) : (
                 <table className="w-full">
@@ -254,11 +239,11 @@ export default function PermissionsDashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {accessRequests.map((request) => (
-                      <tr key={request.id}>
+                      <tr key={request.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-right">{request.user_username || request.user?.username}</td>
                         <td className="px-6 py-4 text-right">{request.user_email || request.user?.email}</td>
                         <td className="px-6 py-4 text-right">
-                          {request.user?.first_name} {request.user?.last_name}
+                          {request.user?.first_name || ''} {request.user?.last_name || ''}
                         </td>
                         <td className="px-6 py-4 text-right">{request.user?.phone || '-'}</td>
                         <td className="px-6 py-4 text-right">
@@ -266,10 +251,10 @@ export default function PermissionsDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <button
-                            onClick={() => openRequestDetails(request)}
+                            onClick={() => openRequestForm(request)}
                             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                           >
-                            פרטים ואישור
+                            בקשה חדשה
                           </button>
                         </td>
                       </tr>
@@ -280,15 +265,15 @@ export default function PermissionsDashboard() {
             </div>
           </div>
 
-          {/* Approved Users */}
+          {/* Bottom Section - Existing Users */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-right">משתמשים מאושרים - ניהול הרשאות</h2>
+              <h2 className="text-xl font-semibold text-right">רשימת המשתמשים הקיימים במערכת</h2>
             </div>
             <div className="overflow-x-auto">
               {approvedUsers.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
-                  אין משתמשים מאושרים
+                  אין משתמשים במערכת
                 </div>
               ) : (
                 <table className="w-full">
@@ -296,6 +281,7 @@ export default function PermissionsDashboard() {
                     <tr>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם משתמש</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">אימייל</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תפקיד</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">יחידה</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
@@ -303,22 +289,34 @@ export default function PermissionsDashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {approvedUsers.map((user) => (
-                      <tr key={user.id}>
+                      <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-right">{user.username}</td>
                         <td className="px-6 py-4 text-right">{user.email}</td>
+                        <td className="px-6 py-4 text-right">
+                          {user.first_name || ''} {user.last_name || ''}
+                        </td>
                         <td className="px-6 py-4 text-right">
                           {roles.find(r => r.value === user.profile?.role)?.label || user.profile?.role || 'משתמש'}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {user.profile?.unit?.name || '-'}
+                          {user.profile?.unit_name || user.profile?.unit?.name || '-'}
                         </td>
                         <td className="px-6 py-4">
-                          <button
-                            onClick={() => openUserEdit(user)}
-                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                          >
-                            ערוך הרשאות
-                          </button>
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => openUserEdit(user)}
+                              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                            >
+                              שינוי הרשאות
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id, user.username)}
+                              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                              title="מחק משתמש"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -330,14 +328,18 @@ export default function PermissionsDashboard() {
         </main>
       </div>
 
-      {/* Request Details Modal */}
-      {showRequestDetails && selectedRequest && (
+      {/* Sidebar */}
+      <Sidebar showSidebar={showSidebar} setShowSidebar={setShowSidebar} userRole={userRole} />
+
+      {/* Request Form Modal */}
+      {showRequestForm && selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-right">פרטי בקשה ופרופיל</h2>
+              <h2 className="text-xl font-semibold text-right">פרטי המשתמש החדש</h2>
             </div>
             <div className="p-6 space-y-4">
+              {/* Display user registration data */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משתמש:</label>
@@ -360,102 +362,72 @@ export default function PermissionsDashboard() {
                   <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.phone || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">תאריך בקשה:</label>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">תעודת זהות:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.profile?.id_number || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.profile?.address || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">עיר:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">
-                    {new Date(selectedRequest.submitted_at).toLocaleString('he-IL')}
+                    {selectedRequest.user?.profile?.city_name_he || selectedRequest.user?.profile?.city_name || '-'}
                   </p>
                 </div>
               </div>
               
+              {/* Permission level dropdown */}
               <div className="border-t pt-4 mt-4">
-                <h3 className="text-lg font-semibold text-right mb-4">הגדרות הרשאות ופרופיל</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 text-right mb-1">תפקיד:</label>
-                    <select
-                      value={requestRole}
-                      onChange={(e) => setRequestRole(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                    >
-                      {roles.map((role) => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה:</label>
-                    <select
-                      value={requestUnitId || ''}
-                      onChange={(e) => setRequestUnitId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                    >
-                      <option value="">ללא יחידה</option>
-                      {units.map((unit) => (
-                        <option key={unit.id} value={unit.id}>
-                          {unit.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 text-right mb-1">תעודת זהות:</label>
-                    <input
-                      type="text"
-                      value={requestIdNumber}
-                      onChange={(e) => setRequestIdNumber(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                      placeholder="הזן תעודת זהות"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת מגורים:</label>
-                    <input
-                      type="text"
-                      value={requestAddress}
-                      onChange={(e) => setRequestAddress(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                      placeholder="הזן כתובת מגורים"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 text-right mb-1">עיר מגורים:</label>
-                    <select
-                      value={requestCityId || ''}
-                      onChange={(e) => setRequestCityId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                    >
-                      <option value="">בחר עיר</option>
-                      {locations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name_he || location.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <h3 className="text-lg font-semibold text-right mb-4">רמת הרשאה</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">תפקיד:</label>
+                  <select
+                    value={requestRole}
+                    onChange={(e) => setRequestRole(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                  >
+                    {roles.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה:</label>
+                  <select
+                    value={requestUnitId || ''}
+                    onChange={(e) => setRequestUnitId(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                  >
+                    <option value="">ללא יחידה</option>
+                    {units.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name_he || unit.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               
+              {/* Action buttons */}
               <div className="flex gap-4 justify-end pt-4 border-t">
                 <button
-                  onClick={handleSaveRequest}
+                  onClick={handleApproveRequest}
                   className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-semibold"
                 >
-                  שמור ואישור
+                  אשר
                 </button>
                 <button
-                  onClick={() => {
-                    const reason = prompt('סיבת דחייה:');
-                    if (reason) handleReject(selectedRequest.id, reason);
-                  }}
-                  className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+                  onClick={handleRejectRequest}
+                  className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-semibold"
                 >
-                  דחה
+                  דחה בקשה
                 </button>
                 <button
                   onClick={() => {
-                    setShowRequestDetails(false);
+                    setShowRequestForm(false);
                     setSelectedRequest(null);
                   }}
                   className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
@@ -471,9 +443,9 @@ export default function PermissionsDashboard() {
       {/* User Edit Modal */}
       {showUserEdit && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-right">עריכת הרשאות ופרופיל משתמש</h2>
+              <h2 className="text-xl font-semibold text-right">שינוי הרשאות משתמש</h2>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -485,22 +457,10 @@ export default function PermissionsDashboard() {
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">אימייל:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.email}</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם פרטי:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.first_name || '-'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משפחה:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.last_name || '-'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.phone || '-'}</p>
-                </div>
               </div>
               
               <div className="border-t pt-4 mt-4">
-                <h3 className="text-lg font-semibold text-right mb-4">הגדרות הרשאות ופרופיל</h3>
+                <h3 className="text-lg font-semibold text-right mb-4">הגדרות הרשאות</h3>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 text-right mb-1">תפקיד:</label>
@@ -526,42 +486,7 @@ export default function PermissionsDashboard() {
                       <option value="">ללא יחידה</option>
                       {units.map((unit) => (
                         <option key={unit.id} value={unit.id}>
-                          {unit.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 text-right mb-1">תעודת זהות:</label>
-                    <input
-                      type="text"
-                      value={editingIdNumber}
-                      onChange={(e) => setEditingIdNumber(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                      placeholder="הזן תעודת זהות"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת מגורים:</label>
-                    <input
-                      type="text"
-                      value={editingAddress}
-                      onChange={(e) => setEditingAddress(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                      placeholder="הזן כתובת מגורים"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 text-right mb-1">עיר מגורים:</label>
-                    <select
-                      value={editingCityId || ''}
-                      onChange={(e) => setEditingCityId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                    >
-                      <option value="">בחר עיר</option>
-                      {locations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name_he || location.name}
+                          {unit.name_he || unit.name}
                         </option>
                       ))}
                     </select>
@@ -593,4 +518,3 @@ export default function PermissionsDashboard() {
     </div>
   );
 }
-

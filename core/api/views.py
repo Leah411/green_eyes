@@ -327,14 +327,23 @@ def list_access_requests_view(request):
     if status_filter:
         queryset = queryset.filter(status=status_filter)
     
-    # Filter by unit (for managers)
-    if hasattr(request.user, 'profile') and request.user.profile.unit and not request.user.is_staff:
-        user_unit = request.user.profile.unit
-        # Get all users in this unit and its descendants
-        descendant_units = user_unit.get_descendants()
-        all_units = [user_unit] + descendant_units
-        unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
-        queryset = queryset.filter(user_id__in=unit_user_ids)
+    # System managers and unit managers see all requests (no unit filter)
+    # Other managers see only requests from their unit
+    if hasattr(request.user, 'profile'):
+        user_role = request.user.profile.role
+        # system_manager and unit_manager see all requests (no filtering)
+        if user_role not in ['system_manager', 'unit_manager'] and not request.user.is_staff:
+            if request.user.profile.unit:
+                user_unit = request.user.profile.unit
+                # Get all users in this unit and its descendants
+                descendant_units = user_unit.get_descendants()
+                all_units = [user_unit] + descendant_units
+                unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+                # Also include users without a unit (unit=None) for pending requests
+                queryset = queryset.filter(
+                    Q(user_id__in=unit_user_ids) | 
+                    Q(user__profile__unit__isnull=True, status='pending')
+                )
     
     # Filter by unit_id query param
     unit_id = request.query_params.get('unit', None)
@@ -383,10 +392,14 @@ def approve_access_request_view(request, request_id):
     # Approve the request
     access_request.approve(request.user)
     
-    # Update user role and unit if provided
+    # Get the user and profile (profile was already created during registration with all data)
+    # All registration data (user fields: first_name, last_name, phone, email, and profile fields: id_number, address, city, unit)
+    # is already saved in the database from the registration process
     user = access_request.user
     profile, created = Profile.objects.get_or_create(user=user)
     
+    # Admin can optionally update role and unit during approval
+    # If not provided, the registration data is preserved
     if 'role' in request.data:
         profile.role = request.data['role']
     
@@ -397,11 +410,12 @@ def approve_access_request_view(request, request_id):
                 unit = Unit.objects.get(id=unit_id)
                 profile.unit = unit
             except Unit.DoesNotExist:
-                pass  # Invalid unit_id, keep existing unit
+                pass  # Invalid unit_id, keep existing unit from registration
         else:
             profile.unit = None
     
-    # Update profile details if provided
+    # Admin can optionally update profile details during approval
+    # If not provided, the registration data is preserved
     if 'id_number' in request.data:
         profile.id_number = request.data['id_number']
     if 'address' in request.data:
@@ -413,10 +427,22 @@ def approve_access_request_view(request, request_id):
                 city = Location.objects.get(id=city_id)
                 profile.city = city
             except Location.DoesNotExist:
-                pass  # Invalid city_id, keep existing city
+                pass  # Invalid city_id, keep existing city from registration
         else:
             profile.city = None
     
+    # Admin can optionally update user fields during approval
+    # If not provided, the registration data is preserved
+    if 'first_name' in request.data:
+        user.first_name = request.data['first_name']
+    if 'last_name' in request.data:
+        user.last_name = request.data['last_name']
+    if 'phone' in request.data:
+        user.phone = request.data['phone']
+    if 'email' in request.data:
+        user.email = request.data['email']
+    
+    user.save()
     profile.save()
     
     # Send approval notification
@@ -744,6 +770,12 @@ class UserViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(id=self.request.user.id)
         return queryset
     
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        """Get current user's profile"""
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
     @action(detail=False, methods=['get'], url_path='approved')
     def approved(self, request):
         """List all approved users"""
@@ -838,6 +870,8 @@ class ProfileViewSet(viewsets.ModelViewSet):
             user.last_name = user_data['last_name']
         if 'phone' in user_data:
             user.phone = user_data['phone']
+        if 'email' in user_data:
+            user.email = user_data['email']
         user.save()
         
         serializer.save()

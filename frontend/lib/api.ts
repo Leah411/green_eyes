@@ -167,6 +167,10 @@ class ApiClient {
     return this.client.patch(`/users/${userId}/update-permissions/`, data);
   }
 
+  async deleteUser(userId: number) {
+    return this.client.delete(`/users/${userId}/`);
+  }
+
   // Health
   async healthCheck() {
     return this.client.get('/health/');

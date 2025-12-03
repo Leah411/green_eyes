@@ -139,43 +139,43 @@ export default function HomePage() {
 
         <main className="max-w-7xl mx-auto px-4 py-8">
           <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8">
-            <div className="text-center mb-8">
+        <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-green-600 mb-2">ירוק בעיניים</h2>
-              <p className="text-gray-600">עדכון זמינות</p>
-            </div>
+          <p className="text-gray-600">עדכון זמינות</p>
+        </div>
 
-            {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-right">
-                {error}
-              </div>
-            )}
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-right">
+            {error}
+          </div>
+        )}
 
-            {success && (
-              <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-right">
-                {success}
-              </div>
-            )}
+        {success && (
+          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-right">
+            {success}
+          </div>
+        )}
 
-            <form onSubmit={handleSubmitAvailability} className="space-y-6">
-              <div>
-                <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+        <form onSubmit={handleSubmitAvailability} className="space-y-6">
+          <div>
+            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
                   בחר מיקום <span className="text-red-500">*</span>
-                </label>
-                <select
+            </label>
+            <select
                   value={locationType}
                   onChange={(e) => {
                     setLocationType(e.target.value as 'base' | 'home' | 'other' | '');
                     setOtherLocation('');
                   }}
-                  required
-                  className="w-full px-4 py-3 border rounded-lg text-right focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value="">-- בחר מיקום --</option>
+              required
+              className="w-full px-4 py-3 border rounded-lg text-right focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="">-- בחר מיקום --</option>
                   <option value="base">בבסיס</option>
                   <option value="home">בבית</option>
                   <option value="other">אחר</option>
-                </select>
-              </div>
+            </select>
+          </div>
 
               {locationType === 'other' && (
                 <div>
@@ -201,15 +201,15 @@ export default function HomePage() {
                 </div>
               )}
 
-              <button
-                type="submit"
+          <button
+            type="submit"
                 disabled={loading || !locationType || (locationType === 'other' && !otherLocation.trim())}
-                className="w-full bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold shadow-md transition-all"
-              >
-                {loading ? 'שולח...' : 'אני זמין'}
-              </button>
-            </form>
-          </div>
+            className="w-full bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold shadow-md transition-all"
+          >
+            {loading ? 'שולח...' : 'אני זמין'}
+          </button>
+        </form>
+        </div>
         </main>
       </div>
 

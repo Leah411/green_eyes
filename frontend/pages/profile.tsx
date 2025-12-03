@@ -106,6 +106,7 @@ export default function ProfilePage() {
           first_name: formData.first_name,
           last_name: formData.last_name,
           phone: formData.phone,
+          email: formData.email,
         };
         
         await api.updateProfile(profile.id, profileUpdateData);
@@ -115,10 +116,10 @@ export default function ProfilePage() {
         return;
       }
       
-      setSuccess('הפרופיל עודכן בהצלחה!');
-      setTimeout(() => {
-        router.push('/home');
-      }, 1500);
+        setSuccess('הפרופיל עודכן בהצלחה!');
+        setTimeout(() => {
+          router.push('/home');
+        }, 1500);
     } catch (err: any) {
       console.error('Profile update error:', err);
       const errorData = err.response?.data;

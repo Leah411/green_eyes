@@ -9,6 +9,7 @@ interface SidebarProps {
 export default function Sidebar({ showSidebar, setShowSidebar, userRole = '' }: SidebarProps) {
   const router = useRouter();
   const isManager = ['system_manager', 'unit_manager', 'branch_manager', 'section_manager', 'team_manager', 'admin'].includes(userRole);
+  const canAccessUserManagement = ['system_manager', 'unit_manager', 'admin'].includes(userRole);
 
   if (!showSidebar) return null;
 
@@ -54,11 +55,24 @@ export default function Sidebar({ showSidebar, setShowSidebar, userRole = '' }: 
 
         {/* Manager-only items */}
         {isManager && (
+          <>
+            <button
+              onClick={() => router.push('/dashboard/manager')}
+              className="w-full text-right p-4 bg-gray-50 hover:bg-green-50 rounded-lg border border-gray-200 hover:border-green-300 transition-all flex items-center justify-between"
+            >
+              <span className="font-semibold text-gray-700">דשבורד מנהל</span>
+              <span className="text-green-600">→</span>
+            </button>
+          </>
+        )}
+
+        {/* User Management - System Manager, Unit Manager, and Admin */}
+        {canAccessUserManagement && (
           <button
             onClick={() => router.push('/dashboard/permissions')}
             className="w-full text-right p-4 bg-gray-50 hover:bg-green-50 rounded-lg border border-gray-200 hover:border-green-300 transition-all flex items-center justify-between"
           >
-            <span className="font-semibold text-gray-700">ניהול הרשאות</span>
+            <span className="font-semibold text-gray-700">ניהול משתמשים</span>
             <span className="text-green-600">→</span>
           </button>
         )}
