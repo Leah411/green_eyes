@@ -53,6 +53,17 @@ export default function Sidebar({ showSidebar, setShowSidebar, userRole = '' }: 
           <span className="text-green-600">→</span>
         </button>
 
+        {/* User Management - System Manager, Unit Manager, and Admin */}
+        {canAccessUserManagement && (
+          <button
+            onClick={() => router.push('/dashboard/permissions')}
+            className="w-full text-right p-4 bg-green-50 hover:bg-green-100 rounded-lg border-2 border-green-300 hover:border-green-400 transition-all flex items-center justify-between"
+          >
+            <span className="font-semibold text-green-700">ניהול משתמשים</span>
+            <span className="text-green-600">→</span>
+          </button>
+        )}
+
         {/* Manager-only items */}
         {isManager && (
           <>
@@ -64,17 +75,6 @@ export default function Sidebar({ showSidebar, setShowSidebar, userRole = '' }: 
               <span className="text-green-600">→</span>
             </button>
           </>
-        )}
-
-        {/* User Management - System Manager, Unit Manager, and Admin */}
-        {canAccessUserManagement && (
-          <button
-            onClick={() => router.push('/dashboard/permissions')}
-            className="w-full text-right p-4 bg-gray-50 hover:bg-green-50 rounded-lg border border-gray-200 hover:border-green-300 transition-all flex items-center justify-between"
-          >
-            <span className="font-semibold text-gray-700">ניהול משתמשים</span>
-            <span className="text-green-600">→</span>
-          </button>
         )}
       </nav>
     </div>
