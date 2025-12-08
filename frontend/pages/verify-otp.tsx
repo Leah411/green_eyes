@@ -34,21 +34,8 @@ export default function VerifyOTP() {
       if (response.data.access && response.data.refresh) {
         localStorage.removeItem('otp_email');
         
-        // Check user role and redirect accordingly
-        try {
-          const profileRes = await api.getProfile();
-          const role = profileRes.data.profile?.role || '';
-          const isManager = ['system_manager', 'unit_manager', 'branch_manager', 'section_manager', 'team_manager', 'admin'].includes(role);
-          
-          if (isManager) {
-            router.push('/dashboard/manager');
-          } else {
-            router.push('/home');
-          }
-        } catch (profileErr) {
-          // If can't get profile, go to home
-          router.push('/home');
-        }
+        // Redirect to home page after login
+        router.push('/home');
       }
     } catch (err: any) {
       setError(err.response?.data?.token?.[0] || err.response?.data?.error || 'Invalid OTP code');

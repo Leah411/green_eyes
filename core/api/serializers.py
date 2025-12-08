@@ -88,11 +88,15 @@ class UserSignupSerializer(serializers.ModelSerializer):
     """Serializer for user registration"""
     password = serializers.CharField(
         write_only=True, 
+        required=False,
+        allow_blank=True,
         validators=[validate_password],
         style={'input_type': 'password'}
     )
     password2 = serializers.CharField(
         write_only=True, 
+        required=False,
+        allow_blank=True,
         label='Confirm Password',
         style={'input_type': 'password'}
     )
@@ -115,6 +119,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
             'address', 'city_id'
         )
         extra_kwargs = {
+            'username': {'required': False},
             'email': {'required': True},
             'first_name': {'required': False},
             'last_name': {'required': False},
@@ -129,7 +134,11 @@ class UserSignupSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         """Validate password match and unit exists"""
-        if attrs['password'] != attrs['password2']:
+        password = attrs.get('password', '')
+        password2 = attrs.get('password2', '')
+        
+        # Only validate password match if passwords are provided
+        if password and password2 and password != password2:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
         
         unit_id = attrs.get('unit_id')
@@ -150,22 +159,57 @@ class UserSignupSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create user, profile, and access request"""
-        password = validated_data.pop('password')
-        validated_data.pop('password2')
+        import secrets
+        import string
+        
+        password = validated_data.pop('password', None)
+        validated_data.pop('password2', None)
         id_number = validated_data.pop('id_number', '')
         unit_id = validated_data.pop('unit_id', None)
         role = validated_data.pop('role', 'user')
         address = validated_data.pop('address', '')
         city_id = validated_data.pop('city_id', None)
         
-        # Create user
-        user = User.objects.create_user(**validated_data)
-        user.set_password(password)
+        # Get email and username
+        email = validated_data.pop('email', '')
+        username = validated_data.pop('username', None)
+        if not username:
+            # Use email prefix as username, or generate unique one
+            username_base = email.split('@')[0]
+            username = username_base
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{username_base}{counter}"
+                counter += 1
+        
+        # Generate random password if not provided
+        if not password:
+            # Generate a secure random password
+            alphabet = string.ascii_letters + string.digits + string.punctuation
+            password = ''.join(secrets.choice(alphabet) for i in range(16))
+        
+        # Create user with registration data
+        # All data from registration form is saved here:
+        # - User fields: first_name, last_name, phone, email
+        user_data = {
+            'username': username,
+            'email': email,
+            'password': password,
+        }
+        # Add other user fields from registration form
+        for key in ['first_name', 'last_name', 'phone']:
+            if key in validated_data:
+                user_data[key] = validated_data[key]
+        
+        user = User.objects.create_user(**user_data)
         user.is_active = True
         user.is_approved = False  # Requires admin approval
         user.save()
         
-        # Create profile
+        # Create profile with all registration data
+        # All data from registration form is saved here:
+        # - Profile fields: id_number, address, city, unit
+        # These will be automatically transferred to the user's profile page after approval
         unit = Unit.objects.get(id=unit_id) if unit_id else None
         city = Location.objects.get(id=city_id) if city_id else None
         Profile.objects.create(

@@ -13,6 +13,9 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [units, setUnits] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -25,6 +28,9 @@ export default function ProfilePage() {
     phone: '',
     id_number: '',
     unit_id: null as number | null,
+    branch_id: null as number | null,
+    section_id: null as number | null,
+    team_id: null as number | null,
     role: 'user',
     address: '',
     city_id: null as number | null,
@@ -45,7 +51,7 @@ export default function ProfilePage() {
     try {
       const [profileRes, unitsRes, locationsRes] = await Promise.all([
         api.getProfile(),
-        api.listUnits(),
+        api.getUnitsByParent(null, 'unit'), // Get root units
         api.listLocations(),
       ]);
       
@@ -59,6 +65,62 @@ export default function ProfilePage() {
       const userRole = userData.profile?.role || '';
       setIsManager(['system_manager', 'unit_manager', 'branch_manager', 'section_manager', 'team_manager', 'admin'].includes(userRole));
       
+      // Get the user's unit and determine hierarchy by traversing up the parent chain
+      const userUnit = userData.profile?.unit;
+      let unitId = null;
+      let branchId = null;
+      let sectionId = null;
+      let teamId = null;
+      
+      if (userUnit && userUnit.id) {
+        try {
+          // Start from the user's unit and traverse up
+          let currentUnitId = userUnit.id;
+          let currentUnit = userUnit;
+          
+          // Determine the current level and set IDs
+          if (currentUnit.unit_type === 'team') {
+            teamId = currentUnit.id;
+            currentUnitId = currentUnit.parent;
+          } else if (currentUnit.unit_type === 'section') {
+            sectionId = currentUnit.id;
+            currentUnitId = currentUnit.parent;
+          } else if (currentUnit.unit_type === 'branch') {
+            branchId = currentUnit.id;
+            currentUnitId = currentUnit.parent;
+          } else {
+            unitId = currentUnit.id;
+            currentUnitId = null;
+          }
+          
+          // Traverse up the parent chain
+          while (currentUnitId) {
+            try {
+              const parentRes = await api.getUnit(currentUnitId);
+              const parent = parentRes.data;
+              
+              if (parent.unit_type === 'section') {
+                sectionId = parent.id;
+                currentUnitId = parent.parent;
+              } else if (parent.unit_type === 'branch') {
+                branchId = parent.id;
+                currentUnitId = parent.parent;
+              } else if (parent.unit_type === 'unit') {
+                unitId = parent.id;
+                currentUnitId = null;
+              } else {
+                break;
+              }
+            } catch (err) {
+              console.error('Failed to load parent unit:', err);
+              break;
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load unit hierarchy:', err);
+        }
+      }
+      
       // Populate form
       setFormData({
         first_name: userData.first_name || '',
@@ -66,18 +128,118 @@ export default function ProfilePage() {
         email: userData.email || '',
         phone: userData.phone || '',
         id_number: userData.profile?.id_number || '',
-        unit_id: userData.profile?.unit || null,
+        unit_id: unitId,
+        branch_id: branchId,
+        section_id: sectionId,
+        team_id: teamId,
         role: userData.profile?.role || 'user',
         address: userData.profile?.address || '',
         city_id: userData.profile?.city || null,
         in_reserves: false, // TODO: Add reserves field to model
         reserves_date: '', // TODO: Add reserves_date field to model
       });
+      
+      // Load branches, sections, teams if needed
+      if (unitId) {
+        loadBranches(unitId);
+      }
+      if (branchId) {
+        loadSections(branchId);
+      }
+      if (sectionId) {
+        loadTeams(sectionId);
+      }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadBranches = async (parentId: number) => {
+    try {
+      const branchesRes = await api.getUnitsByParent(parentId, 'branch');
+      setBranches(branchesRes.data.results || branchesRes.data || []);
+    } catch (err) {
+      console.error('Failed to load branches:', err);
+      setBranches([]);
+    }
+  };
+
+  const loadSections = async (parentId: number) => {
+    try {
+      const sectionsRes = await api.getUnitsByParent(parentId, 'section');
+      setSections(sectionsRes.data.results || sectionsRes.data || []);
+    } catch (err) {
+      console.error('Failed to load sections:', err);
+      setSections([]);
+    }
+  };
+
+  const loadTeams = async (parentId: number) => {
+    try {
+      const teamsRes = await api.getUnitsByParent(parentId, 'team');
+      setTeams(teamsRes.data.results || teamsRes.data || []);
+    } catch (err) {
+      console.error('Failed to load teams:', err);
+      setTeams([]);
+    }
+  };
+
+  const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedUnitId = e.target.value ? Number(e.target.value) : null;
+    setFormData({
+      ...formData,
+      unit_id: selectedUnitId,
+      branch_id: null,
+      section_id: null,
+      team_id: null,
+    });
+    setBranches([]);
+    setSections([]);
+    setTeams([]);
+    
+    if (selectedUnitId) {
+      loadBranches(selectedUnitId);
+    }
+  };
+
+  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedBranchId = e.target.value ? Number(e.target.value) : null;
+    setFormData({
+      ...formData,
+      branch_id: selectedBranchId,
+      section_id: null,
+      team_id: null,
+    });
+    setSections([]);
+    setTeams([]);
+    
+    if (selectedBranchId) {
+      loadSections(selectedBranchId);
+    }
+  };
+
+  const handleSectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedSectionId = e.target.value ? Number(e.target.value) : null;
+    setFormData({
+      ...formData,
+      section_id: selectedSectionId,
+      team_id: null,
+    });
+    setTeams([]);
+    
+    if (selectedSectionId) {
+      loadTeams(selectedSectionId);
+    }
+  };
+
+  const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedTeamId = e.target.value ? Number(e.target.value) : null;
+    setFormData({
+      ...formData,
+      team_id: selectedTeamId,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,9 +259,12 @@ export default function ProfilePage() {
     try {
       // Update profile if exists
       if (profile && profile.id) {
+        // Use the most specific unit selected (team > section > branch > unit)
+        const finalUnitId = formData.team_id || formData.section_id || formData.branch_id || formData.unit_id;
+        
         const profileUpdateData: any = {
           id_number: formData.id_number,
-          unit: formData.unit_id,
+          unit: finalUnitId,
           address: formData.address,
           city: formData.city_id,
           // Include user fields in profile update
@@ -257,7 +422,7 @@ export default function ProfilePage() {
             </label>
             <select
               value={formData.unit_id || ''}
-              onChange={(e) => setFormData({ ...formData, unit_id: e.target.value ? Number(e.target.value) : null })}
+              onChange={handleUnitChange}
               className="w-full px-4 py-2 border rounded-lg text-right"
             >
               <option value="">-- בחר יחידה --</option>
@@ -268,6 +433,66 @@ export default function ProfilePage() {
               ))}
             </select>
           </div>
+
+          {formData.unit_id && branches.length > 0 && (
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                ענף
+              </label>
+              <select
+                value={formData.branch_id || ''}
+                onChange={handleBranchChange}
+                className="w-full px-4 py-2 border rounded-lg text-right"
+              >
+                <option value="">-- בחר ענף --</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name_he || branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {formData.branch_id && sections.length > 0 && (
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                מדור
+              </label>
+              <select
+                value={formData.section_id || ''}
+                onChange={handleSectionChange}
+                className="w-full px-4 py-2 border rounded-lg text-right"
+              >
+                <option value="">-- בחר מדור --</option>
+                {sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.name_he || section.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {formData.section_id && teams.length > 0 && (
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                צוות
+              </label>
+              <select
+                value={formData.team_id || ''}
+                onChange={handleTeamChange}
+                className="w-full px-4 py-2 border rounded-lg text-right"
+              >
+                <option value="">-- בחר צוות --</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name_he || team.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">

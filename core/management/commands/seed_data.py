@@ -50,108 +50,116 @@ class Command(BaseCommand):
         self.stdout.write('')
 
     def create_units(self):
-        """Create organizational structure"""
+        """Create organizational structure: פריזמה → נחשול/תמ"צ → מדורים → צוותים"""
         self.stdout.write('Creating organizational units...')
         
-        # Main Unit
-        main_unit, created = Unit.objects.get_or_create(
-            code='UNIT-001',
+        # Unit: פריזמה
+        prisma, created = Unit.objects.get_or_create(
+            code='PRISMA-001',
             defaults={
-                'name': 'Main Unit',
-                'name_he': 'יחידה ראשית',
+                'name': 'Prisma',
+                'name_he': 'פריזמה',
                 'unit_type': 'unit',
             }
         )
         if created:
-            self.stdout.write(self.style.SUCCESS(f'  ✓ Created unit: {main_unit.name}'))
+            self.stdout.write(self.style.SUCCESS(f'  ✓ Created unit: {prisma.name_he}'))
         
-        # Branch 1
-        branch1, created = Unit.objects.get_or_create(
-            code='BRANCH-001',
+        # Branch: נחשול
+        nahshol, created = Unit.objects.get_or_create(
+            code='NAHSHOL-001',
             defaults={
-                'name': 'Branch 1',
-                'name_he': 'סניף 1',
+                'name': 'Nahshol',
+                'name_he': 'נחשול',
                 'unit_type': 'branch',
-                'parent': main_unit,
+                'parent': prisma,
             }
         )
         if created:
-            self.stdout.write(self.style.SUCCESS(f'  ✓ Created branch: {branch1.name}'))
+            self.stdout.write(self.style.SUCCESS(f'  ✓ Created branch: {nahshol.name_he}'))
         
-        # Branch 2
-        branch2, created = Unit.objects.get_or_create(
-            code='BRANCH-002',
+        # Branch: תמ"צ
+        tamz, created = Unit.objects.get_or_create(
+            code='TAMZ-001',
             defaults={
-                'name': 'Branch 2',
-                'name_he': 'סניף 2',
+                'name': 'Tamz',
+                'name_he': 'תמ"צ',
                 'unit_type': 'branch',
-                'parent': main_unit,
+                'parent': prisma,
             }
         )
         if created:
-            self.stdout.write(self.style.SUCCESS(f'  ✓ Created branch: {branch2.name}'))
+            self.stdout.write(self.style.SUCCESS(f'  ✓ Created branch: {tamz.name_he}'))
         
-        # Section 1 (under Branch 1)
-        section1, created = Unit.objects.get_or_create(
-            code='SECTION-001',
-            defaults={
-                'name': 'Section 1',
-                'name_he': 'מחלקה 1',
-                'unit_type': 'section',
-                'parent': branch1,
-            }
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS(f'  ✓ Created section: {section1.name}'))
+        # Sections under תמ"צ
+        sections_data = [
+            ('GAUSS-001', 'Gauss', 'גאוס', [
+                ('TEAM-GAUSS-001', 'Development', 'פיתוח'),
+                ('TEAM-GAUSS-002', 'Research', 'מחקר'),
+                ('TEAM-GAUSS-003', 'Olympus', 'אולימפוס'),
+            ]),
+            ('MAXWELL-001', 'Maxwell', 'מקסוול', [
+                ('TEAM-MAXWELL-001', 'NOCOUT', 'NOCOUT'),
+                ('TEAM-MAXWELL-002', 'PM', 'PM'),
+                ('TEAM-MAXWELL-003', 'PD', 'PD'),
+                ('TEAM-MAXWELL-004', 'DA', 'DA'),
+                ('TEAM-MAXWELL-005', 'Architect', 'ארכיטקט'),
+            ]),
+            ('PLANNING-001', 'Planning', 'תכנון', [
+                ('TEAM-PLANNING-001', 'Harmony', 'הרמוניה'),
+                ('TEAM-PLANNING-002', 'Guaat', 'גואט'),
+            ]),
+            ('INVESTIGATION-001', 'Investigation', 'תחקור', [
+                ('TEAM-INVESTIGATION-001', 'Artemis', 'ארתמיס'),
+                ('TEAM-INVESTIGATION-002', 'Butterfly Effect', 'אפקט הפרפר'),
+            ]),
+            ('REALTIME-001', 'Real Time', 'זמן אמת', [
+                ('TEAM-REALTIME-001', 'Upper Shield', 'מגן עליון'),
+                ('TEAM-REALTIME-002', 'Black Shield', 'מגן שחור'),
+                ('TEAM-REALTIME-003', 'Regulav', 'רגולאב'),
+                ('TEAM-REALTIME-004', 'Pantheon', 'פנתאון'),
+            ]),
+        ]
         
-        # Section 2 (under Branch 1)
-        section2, created = Unit.objects.get_or_create(
-            code='SECTION-002',
-            defaults={
-                'name': 'Section 2',
-                'name_he': 'מחלקה 2',
-                'unit_type': 'section',
-                'parent': branch1,
-            }
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS(f'  ✓ Created section: {section2.name}'))
+        created_sections = {}
+        created_teams = {}
         
-        # Team 1 (under Section 1)
-        team1, created = Unit.objects.get_or_create(
-            code='TEAM-001',
-            defaults={
-                'name': 'Team 1',
-                'name_he': 'צוות 1',
-                'unit_type': 'team',
-                'parent': section1,
-            }
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS(f'  ✓ Created team: {team1.name}'))
-        
-        # Team 2 (under Section 1)
-        team2, created = Unit.objects.get_or_create(
-            code='TEAM-002',
-            defaults={
-                'name': 'Team 2',
-                'name_he': 'צוות 2',
-                'unit_type': 'team',
-                'parent': section1,
-            }
-        )
-        if created:
-            self.stdout.write(self.style.SUCCESS(f'  ✓ Created team: {team2.name}'))
+        for section_code, section_name, section_name_he, teams_list in sections_data:
+            section, created = Unit.objects.get_or_create(
+                code=section_code,
+                defaults={
+                    'name': section_name,
+                    'name_he': section_name_he,
+                    'unit_type': 'section',
+                    'parent': tamz,
+                }
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f'  ✓ Created section: {section.name_he}'))
+            created_sections[section_code] = section
+            
+            # Create teams for this section
+            for team_code, team_name, team_name_he in teams_list:
+                team, created = Unit.objects.get_or_create(
+                    code=team_code,
+                    defaults={
+                        'name': team_name,
+                        'name_he': team_name_he,
+                        'unit_type': 'team',
+                        'parent': section,
+                    }
+                )
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'    ✓ Created team: {team.name_he}'))
+                created_teams[team_code] = team
         
         self.stdout.write('')
         return {
-            'main_unit': main_unit,
-            'branch1': branch1,
-            'branch2': branch2,
-            'section1': section1,
-            'section2': section2,
-            'team1': team1,
-            'team2': team2,
+            'prisma': prisma,
+            'nahshol': nahshol,
+            'tamz': tamz,
+            'sections': created_sections,
+            'teams': created_teams,
         }
 
     def create_sample_users(self, units):
@@ -176,7 +184,7 @@ class Command(BaseCommand):
             admin_user.save()
             Profile.objects.create(
                 user=admin_user,
-                unit=units['main_unit'],
+                unit=units['prisma'],
                 role='admin',
                 id_number='000000000'
             )
@@ -198,7 +206,7 @@ class Command(BaseCommand):
             unit_manager.save()
             Profile.objects.create(
                 user=unit_manager,
-                unit=units['main_unit'],
+                unit=units['prisma'],
                 role='unit_manager',
                 id_number='111111111'
             )
@@ -220,7 +228,7 @@ class Command(BaseCommand):
             branch_manager.save()
             Profile.objects.create(
                 user=branch_manager,
-                unit=units['branch1'],
+                unit=units['tamz'],
                 role='branch_manager',
                 id_number='222222222'
             )
@@ -240,9 +248,11 @@ class Command(BaseCommand):
         if created:
             section_manager.set_password('manager123')
             section_manager.save()
+            # Use first section from tamz
+            first_section = list(units['sections'].values())[0] if units['sections'] else None
             Profile.objects.create(
                 user=section_manager,
-                unit=units['section1'],
+                unit=first_section,
                 role='section_manager',
                 id_number='333333333'
             )
@@ -262,9 +272,11 @@ class Command(BaseCommand):
         if created:
             team_manager.set_password('manager123')
             team_manager.save()
+            # Use first team from first section
+            first_team = list(units['teams'].values())[0] if units['teams'] else None
             Profile.objects.create(
                 user=team_manager,
-                unit=units['team1'],
+                unit=first_team,
                 role='team_manager',
                 id_number='444444444'
             )
@@ -285,9 +297,11 @@ class Command(BaseCommand):
             if created:
                 user.set_password('user123')
                 user.save()
+                # Use first team from first section
+                first_team = list(units['teams'].values())[0] if units['teams'] else None
                 Profile.objects.create(
                     user=user,
-                    unit=units['team1'],
+                    unit=first_team,
                     role='user',
                     id_number=f'55555555{i}'
                 )
@@ -307,9 +321,12 @@ class Command(BaseCommand):
         if created:
             pending_user.set_password('user123')
             pending_user.save()
+            # Use second team if available
+            teams_list = list(units['teams'].values())
+            second_team = teams_list[1] if len(teams_list) > 1 else teams_list[0] if teams_list else None
             Profile.objects.create(
                 user=pending_user,
-                unit=units['team2'],
+                unit=second_team,
                 role='user',
                 id_number='666666666'
             )

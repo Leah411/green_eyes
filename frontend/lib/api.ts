@@ -141,8 +141,23 @@ class ApiClient {
   }
 
   // Units
-  async listUnits() {
-    return this.client.get('/units/');
+  async listUnits(params?: { parent_id?: number | null; unit_type?: string; id?: number }) {
+    return this.client.get('/units/', { params });
+  }
+
+  async getUnit(id: number) {
+    return this.client.get(`/units/${id}/`);
+  }
+
+  async getUnitsByParent(parentId?: number | null, unitType?: string) {
+    const params: any = {};
+    if (parentId !== undefined) {
+      params.parent_id = parentId;
+    }
+    if (unitType) {
+      params.unit_type = unitType;
+    }
+    return this.client.get('/units/by-parent/', { params });
   }
 
   // Locations (Cities, Towns, Settlements)

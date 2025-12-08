@@ -9,17 +9,20 @@ export default function Home() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [password2, setPassword2] = useState('');
-  const [username, setUsername] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [idNumber, setIdNumber] = useState('');
   const [unitId, setUnitId] = useState<number | null>(null);
+  const [branchId, setBranchId] = useState<number | null>(null);
+  const [sectionId, setSectionId] = useState<number | null>(null);
+  const [teamId, setTeamId] = useState<number | null>(null);
   const [address, setAddress] = useState('');
   const [cityId, setCityId] = useState<number | null>(null);
   const [units, setUnits] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,7 +45,7 @@ export default function Home() {
   const loadUnitsAndLocations = async () => {
     try {
       const [unitsRes, locationsRes] = await Promise.all([
-        api.listUnits(),
+        api.getUnitsByParent(null, 'unit'), // Get root units (type='unit')
         api.listLocations(),
       ]);
       setUnits(unitsRes.data.results || unitsRes.data || []);
@@ -52,21 +55,83 @@ export default function Home() {
     }
   };
 
-  const checkUserAndRedirect = async () => {
+  const loadBranches = async (parentId: number) => {
     try {
-      const profileRes = await api.getProfile();
-      const role = profileRes.data.profile?.role || '';
-      const isManager = ['system_manager', 'unit_manager', 'branch_manager', 'section_manager', 'team_manager', 'admin'].includes(role);
-      
-      if (isManager) {
-        router.push('/dashboard/manager');
-      } else {
-        router.push('/home');
-      }
+      const branchesRes = await api.getUnitsByParent(parentId, 'branch');
+      setBranches(branchesRes.data.results || branchesRes.data || []);
     } catch (err) {
-      // If can't get profile, go to home
-      router.push('/home');
+      console.error('Failed to load branches:', err);
+      setBranches([]);
     }
+  };
+
+  const loadSections = async (parentId: number) => {
+    try {
+      const sectionsRes = await api.getUnitsByParent(parentId, 'section');
+      setSections(sectionsRes.data.results || sectionsRes.data || []);
+    } catch (err) {
+      console.error('Failed to load sections:', err);
+      setSections([]);
+    }
+  };
+
+  const loadTeams = async (parentId: number) => {
+    try {
+      const teamsRes = await api.getUnitsByParent(parentId, 'team');
+      setTeams(teamsRes.data.results || teamsRes.data || []);
+    } catch (err) {
+      console.error('Failed to load teams:', err);
+      setTeams([]);
+    }
+  };
+
+  const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedUnitId = e.target.value ? Number(e.target.value) : null;
+    setUnitId(selectedUnitId);
+    setBranchId(null);
+    setSectionId(null);
+    setTeamId(null);
+    setBranches([]);
+    setSections([]);
+    setTeams([]);
+    
+    if (selectedUnitId) {
+      loadBranches(selectedUnitId);
+    }
+  };
+
+  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedBranchId = e.target.value ? Number(e.target.value) : null;
+    setBranchId(selectedBranchId);
+    setSectionId(null);
+    setTeamId(null);
+    setSections([]);
+    setTeams([]);
+    
+    if (selectedBranchId) {
+      loadSections(selectedBranchId);
+    }
+  };
+
+  const handleSectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedSectionId = e.target.value ? Number(e.target.value) : null;
+    setSectionId(selectedSectionId);
+    setTeamId(null);
+    setTeams([]);
+    
+    if (selectedSectionId) {
+      loadTeams(selectedSectionId);
+    }
+  };
+
+  const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedTeamId = e.target.value ? Number(e.target.value) : null;
+    setTeamId(selectedTeamId);
+  };
+
+  const checkUserAndRedirect = async () => {
+    // Redirect to home page after login
+    router.push('/home');
   };
 
   const toggleLanguage = () => {
@@ -162,38 +227,34 @@ export default function Home() {
     setSuccess('');
 
     try {
-      // Validate passwords match
-      if (password !== password2) {
-        setError('הסיסמאות לא תואמות');
-        setLoading(false);
-        return;
-      }
-
+      // Use the most specific unit selected (team > section > branch > unit)
+      const finalUnitId = teamId || sectionId || branchId || unitId;
+      
       await api.register({
-        username,
         email,
-        password,
-        password2,
         first_name: firstName,
         last_name: lastName,
         phone,
         id_number: idNumber,
-        unit_id: unitId,
+        unit_id: finalUnitId,
         address: address,
         city_id: cityId,
       });
       setSuccess('הרשמה בוצעה בהצלחה! הבקשה נשלחה לאישור מנהל מערכת או מנהל יחידה.');
       setIsLogin(true);
       // Clear form
-      setUsername('');
       setEmail('');
-      setPassword('');
-      setPassword2('');
       setFirstName('');
       setLastName('');
       setPhone('');
       setIdNumber('');
       setUnitId(null);
+      setBranchId(null);
+      setSectionId(null);
+      setTeamId(null);
+      setBranches([]);
+      setSections([]);
+      setTeams([]);
       setAddress('');
       setCityId(null);
     } catch (err: any) {
@@ -204,12 +265,8 @@ export default function Home() {
           setError(errorData);
         } else if (errorData.error) {
           setError(errorData.error);
-        } else if (errorData.password) {
-          setError(Array.isArray(errorData.password) ? errorData.password[0] : errorData.password);
         } else if (errorData.email) {
           setError(Array.isArray(errorData.email) ? errorData.email[0] : errorData.email);
-        } else if (errorData.username) {
-          setError(Array.isArray(errorData.username) ? errorData.username[0] : errorData.username);
         } else {
           setError('הרשמה נכשלה. אנא בדוק את הפרטים שהזנת.');
         }
@@ -296,18 +353,7 @@ export default function Home() {
         ) : (
           <form onSubmit={handleRegister} className="space-y-4" dir="rtl">
             <div>
-              <label className="block text-right text-sm font-medium mb-1">שם משתמש</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg text-right"
-                placeholder="הזן שם משתמש"
-              />
-            </div>
-            <div>
-              <label className="block text-right text-sm font-medium mb-1">אימייל</label>
+              <label className="block text-right text-sm font-medium mb-1">אימייל <span className="text-red-500">*</span></label>
               <input
                 type="email"
                 value={email}
@@ -340,28 +386,6 @@ export default function Home() {
               </div>
             </div>
             <div>
-              <label className="block text-right text-sm font-medium mb-1">סיסמה</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg text-right"
-                placeholder="הזן סיסמה"
-              />
-            </div>
-            <div>
-              <label className="block text-right text-sm font-medium mb-1">אישור סיסמה</label>
-              <input
-                type="password"
-                value={password2}
-                onChange={(e) => setPassword2(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg text-right"
-                placeholder="הזן סיסמה שוב"
-              />
-            </div>
-            <div>
               <label className="block text-right text-sm font-medium mb-1">טלפון</label>
               <input
                 type="tel"
@@ -382,10 +406,11 @@ export default function Home() {
               />
             </div>
             <div>
-              <label className="block text-right text-sm font-medium mb-1">יחידה</label>
+              <label className="block text-right text-sm font-medium mb-1">יחידה <span className="text-red-500">*</span></label>
               <select
                 value={unitId || ''}
-                onChange={(e) => setUnitId(e.target.value ? Number(e.target.value) : null)}
+                onChange={handleUnitChange}
+                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
               >
                 <option value="">-- בחר יחידה --</option>
@@ -396,6 +421,60 @@ export default function Home() {
                 ))}
               </select>
             </div>
+
+            {unitId && branches.length > 0 && (
+              <div>
+                <label className="block text-right text-sm font-medium mb-1">ענף</label>
+                <select
+                  value={branchId || ''}
+                  onChange={handleBranchChange}
+                  className="w-full px-4 py-2 border rounded-lg text-right"
+                >
+                  <option value="">-- בחר ענף --</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name_he || branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {branchId && sections.length > 0 && (
+              <div>
+                <label className="block text-right text-sm font-medium mb-1">מדור</label>
+                <select
+                  value={sectionId || ''}
+                  onChange={handleSectionChange}
+                  className="w-full px-4 py-2 border rounded-lg text-right"
+                >
+                  <option value="">-- בחר מדור --</option>
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name_he || section.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {sectionId && teams.length > 0 && (
+              <div>
+                <label className="block text-right text-sm font-medium mb-1">צוות</label>
+                <select
+                  value={teamId || ''}
+                  onChange={handleTeamChange}
+                  className="w-full px-4 py-2 border rounded-lg text-right"
+                >
+                  <option value="">-- בחר צוות --</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name_he || team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-right text-sm font-medium mb-1">כתובת מגורים</label>
               <input

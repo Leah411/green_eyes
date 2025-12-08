@@ -389,14 +389,24 @@ def approve_access_request_view(request, request_id):
             'error': 'Access request already approved.'
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    # Approve the request
-    access_request.approve(request.user)
-    
     # Get the user and profile (profile was already created during registration with all data)
-    # All registration data (user fields: first_name, last_name, phone, email, and profile fields: id_number, address, city, unit)
-    # is already saved in the database from the registration process
     user = access_request.user
-    profile, created = Profile.objects.get_or_create(user=user)
+    
+    # Ensure profile exists (it should already exist from registration)
+    try:
+        profile = user.profile
+    except Profile.DoesNotExist:
+        # If profile doesn't exist for some reason, create it with default values
+        # This should not happen, but we handle it as a safety measure
+        profile = Profile.objects.create(
+            user=user,
+            role='user',
+        )
+    
+    # All registration data is already saved in the database from registration:
+    # - User fields: first_name, last_name, phone, email (saved during registration)
+    # - Profile fields: id_number, address, city, unit (saved during registration)
+    # These are preserved and will be visible in the user's profile page after approval
     
     # Admin can optionally update role and unit during approval
     # If not provided, the registration data is preserved
@@ -415,7 +425,7 @@ def approve_access_request_view(request, request_id):
             profile.unit = None
     
     # Admin can optionally update profile details during approval
-    # If not provided, the registration data is preserved
+    # If not provided, the registration data from registration form is preserved
     if 'id_number' in request.data:
         profile.id_number = request.data['id_number']
     if 'address' in request.data:
@@ -432,7 +442,7 @@ def approve_access_request_view(request, request_id):
             profile.city = None
     
     # Admin can optionally update user fields during approval
-    # If not provided, the registration data is preserved
+    # If not provided, the registration data from registration form is preserved
     if 'first_name' in request.data:
         user.first_name = request.data['first_name']
     if 'last_name' in request.data:
@@ -442,8 +452,12 @@ def approve_access_request_view(request, request_id):
     if 'email' in request.data:
         user.email = request.data['email']
     
+    # Save all changes to ensure registration data is preserved
     user.save()
     profile.save()
+    
+    # Approve the request (this sets user.is_approved=True and saves the access request)
+    access_request.approve(request.user)
     
     # Send approval notification
     send_approval_notification(access_request.user)
@@ -883,12 +897,46 @@ class UnitViewSet(viewsets.ModelViewSet):
     serializer_class = UnitSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_queryset(self):
+        """Filter units by parent_id if provided"""
+        queryset = super().get_queryset()
+        parent_id = self.request.query_params.get('parent_id', None)
+        unit_type = self.request.query_params.get('unit_type', None)
+        
+        if parent_id:
+            queryset = queryset.filter(parent_id=parent_id)
+        elif parent_id == '':  # Empty string means get root units (no parent)
+            queryset = queryset.filter(parent__isnull=True)
+        
+        if unit_type:
+            queryset = queryset.filter(unit_type=unit_type)
+        
+        return queryset
+    
     @action(detail=True, methods=['get'])
     def members(self, request, pk=None):
         """Get all members of a unit"""
         unit = self.get_object()
         members = Profile.objects.filter(unit=unit).select_related('user')
         serializer = ProfileSerializer(members, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='by-parent')
+    def by_parent(self, request):
+        """Get units by parent_id"""
+        parent_id = request.query_params.get('parent_id', None)
+        unit_type = request.query_params.get('unit_type', None)
+        
+        if parent_id:
+            queryset = Unit.objects.filter(parent_id=parent_id)
+        else:
+            # Get root units (no parent)
+            queryset = Unit.objects.filter(parent__isnull=True)
+        
+        if unit_type:
+            queryset = queryset.filter(unit_type=unit_type)
+        
+        serializer = UnitSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
