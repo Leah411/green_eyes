@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import Cookies from 'js-cookie';
+import SearchableLocationSelect from '../components/SearchableLocationSelect';
 
 export default function Home() {
   const { t, i18n } = useTranslation();
@@ -23,7 +24,6 @@ export default function Home() {
   const [branches, setBranches] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -36,29 +36,30 @@ export default function Home() {
       checkUserAndRedirect();
     }
     
-    // Load units and locations for registration form
+    // Load units for registration form
     if (!isLogin) {
-      loadUnitsAndLocations();
+      loadUnits();
     }
   }, [router, isLogin]);
   
-  const loadUnitsAndLocations = async () => {
+  const loadUnits = async () => {
     try {
-      const [unitsRes, locationsRes] = await Promise.all([
-        api.getUnitsByParent(null, 'unit'), // Get root units (type='unit')
-        api.listLocations(),
-      ]);
-      setUnits(unitsRes.data.results || unitsRes.data || []);
-      setLocations(locationsRes.data.results || locationsRes.data || []);
+      const unitsRes = await api.getUnitsByParent(null, 'unit'); // Get root units
+      const unitsData = unitsRes.data.results || unitsRes.data || [];
+      const unitsArray = Array.isArray(unitsData) ? unitsData : [];
+      console.log('Loaded units:', unitsArray.length, unitsArray);
+      setUnits(unitsArray);
     } catch (err) {
-      console.error('Failed to load units/locations:', err);
+      console.error('Failed to load units:', err);
+      setUnits([]);
     }
   };
 
   const loadBranches = async (parentId: number) => {
     try {
       const branchesRes = await api.getUnitsByParent(parentId, 'branch');
-      setBranches(branchesRes.data.results || branchesRes.data || []);
+      const branchesData = branchesRes.data.results || branchesRes.data || [];
+      setBranches(Array.isArray(branchesData) ? branchesData : []);
     } catch (err) {
       console.error('Failed to load branches:', err);
       setBranches([]);
@@ -68,7 +69,8 @@ export default function Home() {
   const loadSections = async (parentId: number) => {
     try {
       const sectionsRes = await api.getUnitsByParent(parentId, 'section');
-      setSections(sectionsRes.data.results || sectionsRes.data || []);
+      const sectionsData = sectionsRes.data.results || sectionsRes.data || [];
+      setSections(Array.isArray(sectionsData) ? sectionsData : []);
     } catch (err) {
       console.error('Failed to load sections:', err);
       setSections([]);
@@ -78,7 +80,8 @@ export default function Home() {
   const loadTeams = async (parentId: number) => {
     try {
       const teamsRes = await api.getUnitsByParent(parentId, 'team');
-      setTeams(teamsRes.data.results || teamsRes.data || []);
+      const teamsData = teamsRes.data.results || teamsRes.data || [];
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
     } catch (err) {
       console.error('Failed to load teams:', err);
       setTeams([]);
@@ -226,6 +229,13 @@ export default function Home() {
     setError('');
     setSuccess('');
 
+    // Validate required fields
+    if (!firstName || !lastName || !email || !phone || !idNumber) {
+      setError('כל השדות המסומנים ב-* חייבים להיות ממולאים');
+      setLoading(false);
+      return;
+    }
+
     try {
       // Use the most specific unit selected (team > section > branch > unit)
       const finalUnitId = teamId || sectionId || branchId || unitId;
@@ -351,9 +361,40 @@ export default function Home() {
             </p>
           </form>
         ) : (
-          <form onSubmit={handleRegister} className="space-y-4" dir="rtl">
+          <form onSubmit={handleRegister} className="space-y-6" dir="rtl">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                  שם פרטי <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border rounded-lg text-right"
+                  placeholder="הזן שם פרטי"
+                />
+              </div>
+              <div>
+                <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                  שם משפחה <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border rounded-lg text-right"
+                  placeholder="הזן שם משפחה"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-right text-sm font-medium mb-1">אימייל <span className="text-red-500">*</span></label>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                אימייל <span className="text-red-500">*</span>
+              </label>
               <input
                 type="email"
                 value={email}
@@ -363,120 +404,114 @@ export default function Home() {
                 placeholder="הזן אימייל"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-right text-sm font-medium mb-1">שם פרטי</label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg text-right"
-                  placeholder="הזן שם פרטי"
-                />
-              </div>
-              <div>
-                <label className="block text-right text-sm font-medium mb-1">שם משפחה</label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg text-right"
-                  placeholder="הזן שם משפחה"
-                />
-              </div>
-            </div>
+
             <div>
-              <label className="block text-right text-sm font-medium mb-1">טלפון</label>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                טלפון <span className="text-red-500">*</span>
+              </label>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
                 placeholder="הזן מספר טלפון"
               />
             </div>
+
             <div>
-              <label className="block text-right text-sm font-medium mb-1">תעודת זהות</label>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                תעודת זהות <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={idNumber}
                 onChange={(e) => setIdNumber(e.target.value)}
+                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
                 placeholder="הזן תעודת זהות"
               />
             </div>
+
             <div>
-              <label className="block text-right text-sm font-medium mb-1">יחידה <span className="text-red-500">*</span></label>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                יחידה
+              </label>
               <select
                 value={unitId || ''}
                 onChange={handleUnitChange}
-                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
               >
                 <option value="">-- בחר יחידה --</option>
-                {units.map((unit) => (
+                {Array.isArray(units) && units.map((unit) => (
                   <option key={unit.id} value={unit.id}>
-                    {unit.name_he || unit.name}
+                    {unit.name_he || unit.name}{unit.code ? ` (${unit.code})` : ''}
                   </option>
                 ))}
               </select>
             </div>
 
-            {unitId && branches.length > 0 && (
-              <div>
-                <label className="block text-right text-sm font-medium mb-1">ענף</label>
-                <select
-                  value={branchId || ''}
-                  onChange={handleBranchChange}
-                  className="w-full px-4 py-2 border rounded-lg text-right"
-                >
-                  <option value="">-- בחר ענף --</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name_he || branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {branchId && sections.length > 0 && (
-              <div>
-                <label className="block text-right text-sm font-medium mb-1">מדור</label>
-                <select
-                  value={sectionId || ''}
-                  onChange={handleSectionChange}
-                  className="w-full px-4 py-2 border rounded-lg text-right"
-                >
-                  <option value="">-- בחר מדור --</option>
-                  {sections.map((section) => (
-                    <option key={section.id} value={section.id}>
-                      {section.name_he || section.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {sectionId && teams.length > 0 && (
-              <div>
-                <label className="block text-right text-sm font-medium mb-1">צוות</label>
-                <select
-                  value={teamId || ''}
-                  onChange={handleTeamChange}
-                  className="w-full px-4 py-2 border rounded-lg text-right"
-                >
-                  <option value="">-- בחר צוות --</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name_he || team.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div>
-              <label className="block text-right text-sm font-medium mb-1">כתובת מגורים</label>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                ענף
+              </label>
+              <select
+                value={branchId || ''}
+                onChange={handleBranchChange}
+                className="w-full px-4 py-2 border rounded-lg text-right"
+                disabled={!unitId}
+              >
+                <option value="">-- בחר ענף --</option>
+                {branches && Array.isArray(branches) && branches.length > 0 && branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name_he || branch.name}{branch.code ? ` (${branch.code})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                מדור
+              </label>
+              <select
+                value={sectionId || ''}
+                onChange={handleSectionChange}
+                className="w-full px-4 py-2 border rounded-lg text-right"
+                disabled={!branchId}
+              >
+                <option value="">-- בחר מדור --</option>
+                {Array.isArray(sections) && sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.name_he || section.name}{section.code ? ` (${section.code})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                צוות
+              </label>
+              <select
+                value={teamId || ''}
+                onChange={handleTeamChange}
+                className="w-full px-4 py-2 border rounded-lg text-right"
+                disabled={!sectionId}
+              >
+                <option value="">-- בחר צוות --</option>
+                {Array.isArray(teams) && teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name_he || team.name}{team.code ? ` (${team.code})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                כתובת מגורים
+              </label>
               <input
                 type="text"
                 value={address}
@@ -485,28 +520,26 @@ export default function Home() {
                 placeholder="הזן כתובת מגורים"
               />
             </div>
+
             <div>
-              <label className="block text-right text-sm font-medium mb-1">עיר מגורים</label>
-              <select
-                value={cityId || ''}
-                onChange={(e) => setCityId(e.target.value ? Number(e.target.value) : null)}
-                className="w-full px-4 py-2 border rounded-lg text-right"
-              >
-                <option value="">-- בחר עיר --</option>
-                {locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name_he || location.name}
-                  </option>
-                ))}
-              </select>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                עיר מגורים
+              </label>
+              <SearchableLocationSelect
+                value={cityId}
+                onChange={setCityId}
+                placeholder="חפש עיר או ישוב..."
+              />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50"
-            >
-              {loading ? t('common.loading') : t('common.register')}
-            </button>
+            <div className="flex gap-4 justify-end pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {loading ? 'שומר...' : 'הרשמה'}
+              </button>
+            </div>
           </form>
         )}
       </div>

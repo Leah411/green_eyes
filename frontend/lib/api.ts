@@ -12,6 +12,7 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      timeout: 60000, // 60 seconds timeout for large responses
     });
 
     // Request interceptor to add auth token
@@ -21,6 +22,10 @@ class ApiClient {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+        // Log request for debugging
+        if (config.url?.includes('/locations/')) {
+          console.log('API: Request to /locations/', { url: config.url, hasToken: !!token });
+        }
         return config;
       },
       (error) => Promise.reject(error)
@@ -28,11 +33,34 @@ class ApiClient {
 
     // Response interceptor to handle token refresh
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Log response for debugging
+        if (response.config.url?.includes('/locations/')) {
+          console.log('API: Response from /locations/', { status: response.status, dataLength: Array.isArray(response.data) ? response.data.length : 'N/A' });
+        }
+        return response;
+      },
       async (error: AxiosError) => {
         const originalRequest = error.config as any;
+        
+        // Log error for debugging
+        if (originalRequest?.url?.includes('/locations/')) {
+          console.log('API: Error from /locations/', { status: error.response?.status, message: error.message });
+        }
 
         if (error.response?.status === 401 && !originalRequest._retry) {
+          // For AllowAny endpoints (like /locations/, /units/by-parent/), retry without token
+          const url = originalRequest.url || '';
+          const allowAnyEndpoints = ['/locations/', '/units/by-parent/', '/health/', '/auth/'];
+          const isAllowAnyEndpoint = allowAnyEndpoints.some(endpoint => url.includes(endpoint));
+          
+          if (isAllowAnyEndpoint) {
+            // Remove authorization header and retry
+            originalRequest._retry = true;
+            delete originalRequest.headers.Authorization;
+            return this.client(originalRequest);
+          }
+
           originalRequest._retry = true;
 
           try {
@@ -151,8 +179,11 @@ class ApiClient {
 
   async getUnitsByParent(parentId?: number | null, unitType?: string) {
     const params: any = {};
-    if (parentId !== undefined) {
+    if (parentId !== undefined && parentId !== null) {
       params.parent_id = parentId;
+    } else if (parentId === null) {
+      // Explicitly set parent_id to empty string to get root units
+      params.parent_id = '';
     }
     if (unitType) {
       params.unit_type = unitType;

@@ -691,10 +691,17 @@ def send_alert_view(request):
             )
             recipients.extend([p.user.email for p in manager_profiles if p.user.email])
     else:
-        # Send to all users/managers (admin only)
-        if not request.user.is_staff:
+        # Send to all users/managers (admin/system_manager only)
+        # Check if user is admin, system_manager, or staff
+        is_admin = request.user.is_staff or request.user.is_superuser
+        is_system_manager = False
+        if hasattr(request.user, 'profile') and request.user.profile:
+            is_system_manager = request.user.profile.role == 'system_manager'
+        
+        if not (is_admin or is_system_manager):
+            user_role = request.user.profile.role if hasattr(request.user, 'profile') and request.user.profile else 'לא מוגדר'
             return Response({
-                'error': 'Only admins can send alerts to all users.'
+                'error': f'רק מנהל מערכת (system_manager) או מנהל יחידה (admin) יכולים לשלוח התראות לכל המשתמשים. התפקיד הנוכחי: {user_role}'
             }, status=status.HTTP_403_FORBIDDEN)
         
         if 'all' in send_to or 'users' in send_to:
@@ -730,6 +737,7 @@ def send_alert_view(request):
                     'subject': subject,
                     'message': message,
                     'home_link': home_link,
+                    'personalized_link': home_link,  # For template compatibility
                 })
                 plain_message = f"{message}\n\nקישור לעמוד הבית: {home_link}"
             except:
@@ -888,6 +896,29 @@ class ProfileViewSet(viewsets.ModelViewSet):
             user.email = user_data['email']
         user.save()
         
+        # Update profile fields - unit and city need special handling
+        profile_data = self.request.data
+        if 'unit' in profile_data:
+            unit_id = profile_data['unit']
+            if unit_id:
+                try:
+                    profile.unit = Unit.objects.get(id=unit_id)
+                except Unit.DoesNotExist:
+                    pass  # Invalid unit_id, keep existing
+            else:
+                profile.unit = None
+        
+        if 'city' in profile_data:
+            city_id = profile_data['city']
+            if city_id:
+                try:
+                    profile.city = Location.objects.get(id=city_id)
+                except Location.DoesNotExist:
+                    pass  # Invalid city_id, keep existing
+            else:
+                profile.city = None
+        
+        # Save profile with serializer (handles other fields like address, id_number)
         serializer.save()
 
 
@@ -921,11 +952,15 @@ class UnitViewSet(viewsets.ModelViewSet):
         serializer = ProfileSerializer(members, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'], url_path='by-parent')
+    @action(detail=False, methods=['get'], url_path='by-parent', permission_classes=[AllowAny])
     def by_parent(self, request):
-        """Get units by parent_id"""
+        """Get units by parent_id - AllowAny for registration form"""
         parent_id = request.query_params.get('parent_id', None)
         unit_type = request.query_params.get('unit_type', None)
+        
+        # Handle empty string as None (for root units)
+        if parent_id == '':
+            parent_id = None
         
         if parent_id:
             queryset = Unit.objects.filter(parent_id=parent_id)
@@ -936,6 +971,9 @@ class UnitViewSet(viewsets.ModelViewSet):
         if unit_type:
             queryset = queryset.filter(unit_type=unit_type)
         
+        # Order by name_he or name
+        queryset = queryset.order_by('name_he', 'name')
+        
         serializer = UnitSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -945,10 +983,11 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
     permission_classes = [AllowAny]  # Anyone can view locations
+    pagination_class = None  # Disable pagination for locations
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        # Optional filtering by type
+        # Only apply filters if they exist (for better performance when no filters)
         location_type = self.request.query_params.get('type', None)
         if location_type:
             queryset = queryset.filter(location_type=location_type)
@@ -957,6 +996,8 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
         if search:
             queryset = queryset.filter(Q(name__icontains=search) | Q(name_he__icontains=search))
         # Order by Hebrew name for better user experience
+        # Use only() to limit fields if needed for better performance
+        # Note: Removing only() to ensure all fields are available
         return queryset.order_by('name_he', 'name')
 
 

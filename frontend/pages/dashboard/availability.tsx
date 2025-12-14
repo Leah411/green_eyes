@@ -59,16 +59,23 @@ export default function AvailabilityDashboard() {
       const usersRes = await api.listApprovedUsers();
       const allUsers = usersRes.data.results || usersRes.data || [];
       
+      // Get today's date to check for today's reports
+      const today = new Date().toISOString().split('T')[0];
+      
       // Load reports to show availability status (filtered by selected unit, backend handles descendants)
-      const reportsRes = await api.listReports(selectedUnit ? { unit: selectedUnit } : {});
+      // Load reports from today to check who filled today
+      const reportParams: any = { date: today };
+      if (selectedUnit) {
+        reportParams.unit = selectedUnit;
+      }
+      const reportsRes = await api.listReports(reportParams);
       const reports = reportsRes.data.results || reportsRes.data || [];
       
-      // Create a map of user IDs to their latest report date
-      const reportsByUser = new Map();
+      // Create a map of user IDs who have filled reports today
+      const usersWithReportToday = new Set();
       reports.forEach((report: any) => {
-        const existingDate = reportsByUser.get(report.user);
-        if (!existingDate || new Date(report.date) > new Date(existingDate)) {
-          reportsByUser.set(report.user, report.date);
+        if (report.date === today) {
+          usersWithReportToday.add(report.user);
         }
       });
       
@@ -79,8 +86,7 @@ export default function AvailabilityDashboard() {
       
       // Merge user data with report status
       const usersWithStatus = usersToShow.map((user: any) => {
-        const latestReportDate = reportsByUser.get(user.id);
-        const hasFilledReport = !!latestReportDate;
+        const hasFilledReportToday = usersWithReportToday.has(user.id);
         
         return {
           user_id: user.id,
@@ -97,9 +103,9 @@ export default function AvailabilityDashboard() {
             name: user.profile.unit_name,
             name_he: user.profile.unit_name
           } : null,
-          status: hasFilledReport ? 'green' : 'red',
-          has_filled_report: hasFilledReport,
-          latest_report_date: latestReportDate,
+          status: hasFilledReportToday ? 'green' : 'red',
+          has_filled_report: hasFilledReportToday,
+          latest_report_date: hasFilledReportToday ? today : null,
         };
       });
       
@@ -158,7 +164,7 @@ export default function AvailabilityDashboard() {
   };
 
   const handleSendAlert = async () => {
-    if (!confirm('האם אתה בטוח שברצונך לשלוח התרעה לכל המשתמשים?')) {
+    if (!confirm('האם אתה בטוח שברצונך לשלוח התרעה לכל המשתמשים במערכת?')) {
       return;
     }
 
@@ -167,9 +173,12 @@ export default function AvailabilityDashboard() {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
       const homeLink = `${baseUrl}/home`;
       
+      // Debug: log user role
+      console.log('Sending alert as role:', userRole);
+      
       const response = await api.sendAlert({
         subject: 'הופעל נוהל ירוק בעיניים',
-        message: `הופעל נוהל ירוק בעיניים יש למלא דוח זמינות\n\nקישור לעמוד הבית: ${homeLink}`,
+        message: `הופעל נוהל ירוק בעיניים, נא למלא סטטוס זמינות\n\nקישור לעמוד הבית: ${homeLink}`,
         unit_id: null, // Send to all users
         send_to: ['all'] // Send to all users
       });
@@ -179,6 +188,7 @@ export default function AvailabilityDashboard() {
       loadData();
     } catch (err: any) {
       console.error('Failed to send alert:', err);
+      console.error('Error details:', err.response?.data);
       const errorMsg = err.response?.data?.error || err.message || 'שגיאה בשליחת ההתרעה';
       alert(`שגיאה בשליחת ההתרעה: ${errorMsg}`);
     } finally {

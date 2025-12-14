@@ -79,11 +79,11 @@
         </div>
         
         <p style="text-align: center;">
-            <a href="{{ personalized_link }}" class="button">לחץ כאן לגישה מהירה</a>
+            <a href="{{ home_link|default:personalized_link }}" class="button">לחץ כאן למלא סטטוס זמינות</a>
         </p>
         
         <p>או העתק את הקישור הבא לדפדפן שלך:<br>
-        <small style="color: #666; word-break: break-all;">{{ personalized_link }}</small></p>
+        <small style="color: #666; word-break: break-all;">{{ home_link|default:personalized_link }}</small></p>
         
         <p>בברכה,<br>צוות ירוק בעיניים</p>
         

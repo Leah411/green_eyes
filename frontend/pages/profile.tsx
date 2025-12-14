@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import Cookies from 'js-cookie';
 import Sidebar from '../components/Sidebar';
+import SearchableLocationSelect from '../components/SearchableLocationSelect';
 
 export default function ProfilePage() {
   const { t } = useTranslation();
@@ -16,7 +17,6 @@ export default function ProfilePage() {
   const [branches, setBranches] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isManager, setIsManager] = useState(false);
@@ -49,17 +49,16 @@ export default function ProfilePage() {
 
   const loadData = async () => {
     try {
-      const [profileRes, unitsRes, locationsRes] = await Promise.all([
+      const [profileRes, unitsRes] = await Promise.all([
         api.getProfile(),
         api.getUnitsByParent(null, 'unit'), // Get root units
-        api.listLocations(),
       ]);
       
       const userData = profileRes.data;
       setUser(userData);
       setProfile(userData.profile);
-      setUnits(unitsRes.data.results || unitsRes.data || []);
-      setLocations(locationsRes.data.results || locationsRes.data || []);
+      const unitsData = unitsRes.data.results || unitsRes.data || [];
+      setUnits(Array.isArray(unitsData) ? unitsData : []);
       
       // Check if user is manager
       const userRole = userData.profile?.role || '';
@@ -159,7 +158,8 @@ export default function ProfilePage() {
   const loadBranches = async (parentId: number) => {
     try {
       const branchesRes = await api.getUnitsByParent(parentId, 'branch');
-      setBranches(branchesRes.data.results || branchesRes.data || []);
+      const branchesData = branchesRes.data.results || branchesRes.data || [];
+      setBranches(Array.isArray(branchesData) ? branchesData : []);
     } catch (err) {
       console.error('Failed to load branches:', err);
       setBranches([]);
@@ -169,7 +169,8 @@ export default function ProfilePage() {
   const loadSections = async (parentId: number) => {
     try {
       const sectionsRes = await api.getUnitsByParent(parentId, 'section');
-      setSections(sectionsRes.data.results || sectionsRes.data || []);
+      const sectionsData = sectionsRes.data.results || sectionsRes.data || [];
+      setSections(Array.isArray(sectionsData) ? sectionsData : []);
     } catch (err) {
       console.error('Failed to load sections:', err);
       setSections([]);
@@ -179,7 +180,8 @@ export default function ProfilePage() {
   const loadTeams = async (parentId: number) => {
     try {
       const teamsRes = await api.getUnitsByParent(parentId, 'team');
-      setTeams(teamsRes.data.results || teamsRes.data || []);
+      const teamsData = teamsRes.data.results || teamsRes.data || [];
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
     } catch (err) {
       console.error('Failed to load teams:', err);
       setTeams([]);
@@ -428,13 +430,13 @@ export default function ProfilePage() {
               <option value="">-- בחר יחידה --</option>
               {units.map((unit) => (
                 <option key={unit.id} value={unit.id}>
-                  {unit.name_he || unit.name}
+                  {unit.name_he || unit.name}{unit.code ? ` (${unit.code})` : ''}
                 </option>
               ))}
             </select>
           </div>
 
-          {formData.unit_id && branches.length > 0 && (
+          {formData.unit_id && (
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
                 ענף
@@ -445,16 +447,16 @@ export default function ProfilePage() {
                 className="w-full px-4 py-2 border rounded-lg text-right"
               >
                 <option value="">-- בחר ענף --</option>
-                {branches.map((branch) => (
+                {branches && Array.isArray(branches) && branches.length > 0 && branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
-                    {branch.name_he || branch.name}
+                    {branch.name_he || branch.name}{branch.code ? ` (${branch.code})` : ''}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {formData.branch_id && sections.length > 0 && (
+          {formData.branch_id && (
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
                 מדור
@@ -465,16 +467,16 @@ export default function ProfilePage() {
                 className="w-full px-4 py-2 border rounded-lg text-right"
               >
                 <option value="">-- בחר מדור --</option>
-                {sections.map((section) => (
+                {sections && Array.isArray(sections) && sections.length > 0 && sections.map((section) => (
                   <option key={section.id} value={section.id}>
-                    {section.name_he || section.name}
+                    {section.name_he || section.name}{section.code ? ` (${section.code})` : ''}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {formData.section_id && teams.length > 0 && (
+          {formData.section_id && (
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
                 צוות
@@ -485,9 +487,9 @@ export default function ProfilePage() {
                 className="w-full px-4 py-2 border rounded-lg text-right"
               >
                 <option value="">-- בחר צוות --</option>
-                {teams.map((team) => (
+                {teams && Array.isArray(teams) && teams.length > 0 && teams.map((team) => (
                   <option key={team.id} value={team.id}>
-                    {team.name_he || team.name}
+                    {team.name_he || team.name}{team.code ? ` (${team.code})` : ''}
                   </option>
                 ))}
               </select>
@@ -511,18 +513,11 @@ export default function ProfilePage() {
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">
               עיר מגורים
             </label>
-            <select
-              value={formData.city_id || ''}
-              onChange={(e) => setFormData({ ...formData, city_id: e.target.value ? Number(e.target.value) : null })}
-              className="w-full px-4 py-2 border rounded-lg text-right"
-            >
-              <option value="">-- בחר עיר --</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name_he || location.name}
-                </option>
-              ))}
-            </select>
+            <SearchableLocationSelect
+              value={formData.city_id}
+              onChange={(cityId) => setFormData({ ...formData, city_id: cityId })}
+              placeholder="חפש עיר או ישוב..."
+            />
           </div>
 
           {/* Reserves Section */}
