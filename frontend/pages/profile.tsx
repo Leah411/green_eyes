@@ -430,7 +430,7 @@ export default function ProfilePage() {
               <option value="">-- בחר יחידה --</option>
               {units.map((unit) => (
                 <option key={unit.id} value={unit.id}>
-                  {unit.name_he || unit.name}{unit.code ? ` (${unit.code})` : ''}
+                  {unit.name_he || unit.name}
                 </option>
               ))}
             </select>
@@ -449,7 +449,7 @@ export default function ProfilePage() {
                 <option value="">-- בחר ענף --</option>
                 {branches && Array.isArray(branches) && branches.length > 0 && branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
-                    {branch.name_he || branch.name}{branch.code ? ` (${branch.code})` : ''}
+                    {branch.name_he || branch.name}
                   </option>
                 ))}
               </select>
@@ -469,7 +469,7 @@ export default function ProfilePage() {
                 <option value="">-- בחר מדור --</option>
                 {sections && Array.isArray(sections) && sections.length > 0 && sections.map((section) => (
                   <option key={section.id} value={section.id}>
-                    {section.name_he || section.name}{section.code ? ` (${section.code})` : ''}
+                    {section.name_he || section.name}
                   </option>
                 ))}
               </select>
@@ -489,7 +489,7 @@ export default function ProfilePage() {
                 <option value="">-- בחר צוות --</option>
                 {teams && Array.isArray(teams) && teams.length > 0 && teams.map((team) => (
                   <option key={team.id} value={team.id}>
-                    {team.name_he || team.name}{team.code ? ` (${team.code})` : ''}
+                    {team.name_he || team.name}
                   </option>
                 ))}
               </select>
