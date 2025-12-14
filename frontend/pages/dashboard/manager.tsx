@@ -338,6 +338,30 @@ export default function ManagerDashboard() {
                   <p className="mt-1">{selectedRequest.user_phone || selectedRequest.user?.phone || '-'}</p>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">תעודת זהות:</label>
+                  <p className="mt-1">{selectedRequest.profile_id_number || selectedRequest.user?.profile?.id_number || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">כתובת:</label>
+                  <p className="mt-1">{selectedRequest.profile_address || selectedRequest.user?.profile?.address || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">עיר:</label>
+                  <p className="mt-1">{selectedRequest.profile_city_name_he || selectedRequest.profile_city_name || selectedRequest.user?.profile?.city_name_he || selectedRequest.user?.profile?.city_name || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">יחידה:</label>
+                  <p className="mt-1">{selectedRequest.profile_unit_name_he || selectedRequest.profile_unit_name || selectedRequest.user?.profile?.unit_name_he || selectedRequest.user?.profile?.unit_name || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">שם איש קשר:</label>
+                  <p className="mt-1">{selectedRequest.profile_contact_name || selectedRequest.user?.profile?.contact_name || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">טלפון איש קשר:</label>
+                  <p className="mt-1">{selectedRequest.profile_contact_phone || selectedRequest.user?.profile?.contact_phone || '-'}</p>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700">תאריך הגשה:</label>
                   <p className="mt-1">{new Date(selectedRequest.submitted_at).toLocaleString('he-IL')}</p>
                 </div>

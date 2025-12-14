@@ -50,8 +50,10 @@ export default function Home() {
       const unitsRes = await api.getUnitsByParent(null, 'unit'); // Get root units
       const unitsData = unitsRes.data.results || unitsRes.data || [];
       const unitsArray = Array.isArray(unitsData) ? unitsData : [];
-      console.log('Loaded units:', unitsArray.length, unitsArray);
-      setUnits(unitsArray);
+      // Filter out "יחידה ראשית" (Main Unit) with ID 1
+      const filteredUnits = unitsArray.filter((unit: any) => unit.id !== 1);
+      console.log('Loaded units:', filteredUnits.length, filteredUnits);
+      setUnits(filteredUnits);
     } catch (err) {
       console.error('Failed to load units:', err);
       setUnits([]);
@@ -239,9 +241,17 @@ export default function Home() {
       return;
     }
 
+    // Use the most specific unit selected (team > section > branch > unit)
+    const finalUnitId = teamId || sectionId || branchId || unitId;
+    
+    // Validate unit is selected
+    if (!finalUnitId) {
+      setError('יש לבחור יחידה');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Use the most specific unit selected (team > section > branch > unit)
-      const finalUnitId = teamId || sectionId || branchId || unitId;
       
       await api.register({
         email,
@@ -533,11 +543,12 @@ export default function Home() {
 
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                יחידה
+                יחידה <span className="text-red-500">*</span>
               </label>
               <select
                 value={unitId || ''}
                 onChange={handleUnitChange}
+                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
               >
                 <option value="">-- בחר יחידה --</option>

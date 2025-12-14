@@ -372,7 +372,25 @@ export default function PermissionsDashboard() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">עיר:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">
-                    {selectedRequest.user?.profile?.city_name_he || selectedRequest.user?.profile?.city_name || '-'}
+                    {selectedRequest.profile_city_name_he || selectedRequest.profile_city_name || selectedRequest.user?.profile?.city_name_he || selectedRequest.user?.profile?.city_name || '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">
+                    {selectedRequest.profile_unit_name_he || selectedRequest.profile_unit_name || selectedRequest.user?.profile?.unit_name_he || selectedRequest.user?.profile?.unit_name || '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם איש קשר:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">
+                    {selectedRequest.profile_contact_name || selectedRequest.user?.profile?.contact_name || '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון איש קשר:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">
+                    {selectedRequest.profile_contact_phone || selectedRequest.user?.profile?.contact_phone || '-'}
                   </p>
                 </div>
               </div>

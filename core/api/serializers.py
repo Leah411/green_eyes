@@ -355,12 +355,24 @@ class AccessRequestSerializer(serializers.ModelSerializer):
     user_phone = serializers.CharField(source='user.phone', read_only=True)
     approved_by_username = serializers.CharField(source='approved_by.username', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    # Profile fields
+    profile_id_number = serializers.CharField(source='user.profile.id_number', read_only=True)
+    profile_address = serializers.CharField(source='user.profile.address', read_only=True)
+    profile_city_name = serializers.CharField(source='user.profile.city.name', read_only=True)
+    profile_city_name_he = serializers.CharField(source='user.profile.city.name_he', read_only=True)
+    profile_contact_name = serializers.CharField(source='user.profile.contact_name', read_only=True)
+    profile_contact_phone = serializers.CharField(source='user.profile.contact_phone', read_only=True)
+    profile_unit_name = serializers.CharField(source='user.profile.unit.name', read_only=True)
+    profile_unit_name_he = serializers.CharField(source='user.profile.unit.name_he', read_only=True)
     
     class Meta:
         model = AccessRequest
         fields = [
             'id', 'user', 'user_username', 'user_email',
             'user_first_name', 'user_last_name', 'user_phone',
+            'profile_id_number', 'profile_address', 'profile_city_name', 'profile_city_name_he',
+            'profile_contact_name', 'profile_contact_phone',
+            'profile_unit_name', 'profile_unit_name_he',
             'submitted_at', 'status', 'status_display',
             'approved_by', 'approved_by_username',
             'approved_at', 'rejection_reason'

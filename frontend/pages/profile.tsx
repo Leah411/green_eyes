@@ -61,7 +61,10 @@ export default function ProfilePage() {
       setUser(userData);
       setProfile(userData.profile);
       const unitsData = unitsRes.data.results || unitsRes.data || [];
-      setUnits(Array.isArray(unitsData) ? unitsData : []);
+      const unitsArray = Array.isArray(unitsData) ? unitsData : [];
+      // Filter out "יחידה ראשית" (Main Unit) with ID 1
+      const filteredUnits = unitsArray.filter((unit: any) => unit.id !== 1);
+      setUnits(filteredUnits);
       
       // Check if user is manager
       const userRole = userData.profile?.role || '';
@@ -263,11 +266,19 @@ export default function ProfilePage() {
       return;
     }
 
+    // Use the most specific unit selected (team > section > branch > unit)
+    const finalUnitId = formData.team_id || formData.section_id || formData.branch_id || formData.unit_id;
+    
+    // Validate unit is selected
+    if (!finalUnitId) {
+      setError('יש לבחור יחידה');
+      setSaving(false);
+      return;
+    }
+
     try {
       // Update profile if exists
       if (profile && profile.id) {
-        // Use the most specific unit selected (team > section > branch > unit)
-        const finalUnitId = formData.team_id || formData.section_id || formData.branch_id || formData.unit_id;
         
         const profileUpdateData: any = {
           id_number: formData.id_number,
@@ -520,11 +531,12 @@ export default function ProfilePage() {
 
           <div>
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-              יחידה
+              יחידה <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.unit_id || ''}
               onChange={handleUnitChange}
+              required
               className="w-full px-4 py-2 border rounded-lg text-right"
             >
               <option value="">-- בחר יחידה --</option>
