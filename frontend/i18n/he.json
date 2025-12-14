@@ -1,7 +1,7 @@
 {
   "common": {
     "welcome": "ברוכים הבאים",
-    "login": "התחברות",
+    "login": "כניסה",
     "register": "הרשמה",
     "logout": "התנתקות",
     "submit": "שלח",
@@ -30,7 +30,7 @@
     "lastName": "שם משפחה",
     "phone": "טלפון",
     "idNumber": "תעודת זהות",
-    "loginTitle": "התחברות למערכת",
+    "loginTitle": "כניסה למערכת",
     "registerTitle": "הרשמה למערכת",
     "otpTitle": "אימות קוד",
     "otpCode": "קוד אימות",

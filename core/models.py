@@ -88,6 +88,8 @@ class Profile(models.Model):
     id_number = models.CharField(max_length=20, blank=True, help_text="National ID number")
     address = models.CharField(max_length=200, blank=True, help_text="כתובת מגורים")
     city = models.ForeignKey('Location', null=True, blank=True, on_delete=models.SET_NULL, related_name='residents', help_text="עיר מגורים")
+    contact_name = models.CharField(max_length=100, blank=True, help_text="שם איש קשר")
+    contact_phone = models.CharField(max_length=20, blank=True, help_text="טלפון איש קשר")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

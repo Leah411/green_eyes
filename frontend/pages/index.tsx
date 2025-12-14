@@ -20,6 +20,8 @@ export default function Home() {
   const [teamId, setTeamId] = useState<number | null>(null);
   const [address, setAddress] = useState('');
   const [cityId, setCityId] = useState<number | null>(null);
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [units, setUnits] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
@@ -27,6 +29,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     // Check if user is already logged in
@@ -310,7 +313,7 @@ export default function Home() {
                 : 'text-gray-500'
             }`}
           >
-            {t('common.login')}
+            כניסה
           </button>
           <button
             onClick={() => setIsLogin(false)}
@@ -320,7 +323,7 @@ export default function Home() {
                 : 'text-gray-500'
             }`}
           >
-            {t('common.register')}
+            הרשמה
           </button>
         </div>
 
@@ -367,27 +370,67 @@ export default function Home() {
                 <label className="block text-right text-sm font-medium mb-2 text-gray-700">
                   שם פרטי <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 border rounded-lg text-right"
-                  placeholder="הזן שם פרטי"
-                />
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow Hebrew letters and hyphen
+                  const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
+                  if (value === '' || hebrewPattern.test(value)) {
+                    setFirstName(value);
+                    // Validate minimum 2 characters
+                    if (value.length > 0 && value.length < 2) {
+                      setFieldErrors({...fieldErrors, firstName: 'שם פרטי חייב להכיל לפחות 2 תווים'});
+                    } else {
+                      const newErrors = {...fieldErrors};
+                      delete newErrors.firstName;
+                      setFieldErrors(newErrors);
+                    }
+                  }
+                }}
+                required
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.firstName ? 'border-red-500' : ''
+                }`}
+                placeholder="הזן שם פרטי"
+              />
+              {fieldErrors.firstName && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.firstName}</p>
+              )}
               </div>
               <div>
                 <label className="block text-right text-sm font-medium mb-2 text-gray-700">
                   שם משפחה <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 border rounded-lg text-right"
-                  placeholder="הזן שם משפחה"
-                />
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow Hebrew letters and hyphen
+                  const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
+                  if (value === '' || hebrewPattern.test(value)) {
+                    setLastName(value);
+                    // Validate minimum 2 characters
+                    if (value.length > 0 && value.length < 2) {
+                      setFieldErrors({...fieldErrors, lastName: 'שם משפחה חייב להכיל לפחות 2 תווים'});
+                    } else {
+                      const newErrors = {...fieldErrors};
+                      delete newErrors.lastName;
+                      setFieldErrors(newErrors);
+                    }
+                  }
+                }}
+                required
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.lastName ? 'border-red-500' : ''
+                }`}
+                placeholder="הזן שם משפחה"
+              />
+              {fieldErrors.lastName && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.lastName}</p>
+              )}
               </div>
             </div>
 
@@ -398,11 +441,28 @@ export default function Home() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEmail(value);
+                  // Validate email format
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (value.length > 0 && !emailRegex.test(value)) {
+                    setFieldErrors({...fieldErrors, email: 'אנא הזן אימייל תקין'});
+                  } else {
+                    const newErrors = {...fieldErrors};
+                    delete newErrors.email;
+                    setFieldErrors(newErrors);
+                  }
+                }}
                 required
-                className="w-full px-4 py-2 border rounded-lg text-right"
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.email ? 'border-red-500' : ''
+                }`}
                 placeholder="הזן אימייל"
               />
+              {fieldErrors.email && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>
@@ -412,11 +472,30 @@ export default function Home() {
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                  if (value.length <= 10) {
+                    setPhone(value);
+                    // Validate 10 digits
+                    if (value.length > 0 && value.length !== 10) {
+                      setFieldErrors({...fieldErrors, phone: 'מספר טלפון חייב להכיל 10 ספרות'});
+                    } else {
+                      const newErrors = {...fieldErrors};
+                      delete newErrors.phone;
+                      setFieldErrors(newErrors);
+                    }
+                  }
+                }}
                 required
-                className="w-full px-4 py-2 border rounded-lg text-right"
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.phone ? 'border-red-500' : ''
+                }`}
                 placeholder="הזן מספר טלפון"
+                maxLength={10}
               />
+              {fieldErrors.phone && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.phone}</p>
+              )}
             </div>
 
             <div>
@@ -426,11 +505,30 @@ export default function Home() {
               <input
                 type="text"
                 value={idNumber}
-                onChange={(e) => setIdNumber(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                  if (value.length <= 9) {
+                    setIdNumber(value);
+                    // Validate 9 digits
+                    if (value.length > 0 && value.length !== 9) {
+                      setFieldErrors({...fieldErrors, idNumber: 'תעודת זהות חייבת להכיל 9 ספרות'});
+                    } else {
+                      const newErrors = {...fieldErrors};
+                      delete newErrors.idNumber;
+                      setFieldErrors(newErrors);
+                    }
+                  }
+                }}
                 required
-                className="w-full px-4 py-2 border rounded-lg text-right"
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.idNumber ? 'border-red-500' : ''
+                }`}
                 placeholder="הזן תעודת זהות"
+                maxLength={9}
               />
+              {fieldErrors.idNumber && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.idNumber}</p>
+              )}
             </div>
 
             <div>
@@ -515,10 +613,85 @@ export default function Home() {
               <input
                 type="text"
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg text-right"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow Hebrew letters, numbers, and spaces
+                  const addressPattern = /^[\u0590-\u05FF\s0-9]*$/;
+                  if (value === '' || addressPattern.test(value)) {
+                    setAddress(value);
+                    const newErrors = {...fieldErrors};
+                    delete newErrors.address;
+                    setFieldErrors(newErrors);
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.address ? 'border-red-500' : ''
+                }`}
                 placeholder="הזן כתובת מגורים"
               />
+              {fieldErrors.address && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.address}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                שם איש קשר
+              </label>
+              <input
+                type="text"
+                value={contactName}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow Hebrew letters and hyphen
+                  const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
+                  if (value === '' || hebrewPattern.test(value)) {
+                    setContactName(value);
+                    const newErrors = {...fieldErrors};
+                    delete newErrors.contactName;
+                    setFieldErrors(newErrors);
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.contactName ? 'border-red-500' : ''
+                }`}
+                placeholder="הזן שם איש קשר"
+              />
+              {fieldErrors.contactName && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.contactName}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                טלפון איש קשר
+              </label>
+              <input
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                  if (value.length <= 10) {
+                    setContactPhone(value);
+                    // Validate 10 digits
+                    if (value.length > 0 && value.length !== 10) {
+                      setFieldErrors({...fieldErrors, contactPhone: 'מספר טלפון איש קשר חייב להכיל 10 ספרות'});
+                    } else {
+                      const newErrors = {...fieldErrors};
+                      delete newErrors.contactPhone;
+                      setFieldErrors(newErrors);
+                    }
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.contactPhone ? 'border-red-500' : ''
+                }`}
+                placeholder="הזן מספר טלפון איש קשר"
+                maxLength={10}
+              />
+              {fieldErrors.contactPhone && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.contactPhone}</p>
+              )}
             </div>
 
             <div>
@@ -546,4 +719,5 @@ export default function Home() {
     </div>
   );
 }
+
 

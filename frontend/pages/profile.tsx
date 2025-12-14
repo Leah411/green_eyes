@@ -13,6 +13,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [units, setUnits] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
@@ -34,6 +35,8 @@ export default function ProfilePage() {
     role: 'user',
     address: '',
     city_id: null as number | null,
+    contact_name: '',
+    contact_phone: '',
     in_reserves: false,
     reserves_date: '',
   });
@@ -134,6 +137,8 @@ export default function ProfilePage() {
         role: userData.profile?.role || 'user',
         address: userData.profile?.address || '',
         city_id: userData.profile?.city || null,
+        contact_name: userData.profile?.contact_name || '',
+        contact_phone: userData.profile?.contact_phone || '',
         in_reserves: false, // TODO: Add reserves field to model
         reserves_date: '', // TODO: Add reserves_date field to model
       });
@@ -360,10 +365,30 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={formData.first_name}
-                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow Hebrew letters and hyphen
+                  const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
+                  if (value === '' || hebrewPattern.test(value)) {
+                    setFormData({ ...formData, first_name: value });
+                    // Validate minimum 2 characters
+                    if (value.length > 0 && value.length < 2) {
+                      setFieldErrors({...fieldErrors, first_name: 'שם פרטי חייב להכיל לפחות 2 תווים'});
+                    } else {
+                      const newErrors = {...fieldErrors};
+                      delete newErrors.first_name;
+                      setFieldErrors(newErrors);
+                    }
+                  }
+                }}
                 required
-                className="w-full px-4 py-2 border rounded-lg text-right"
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.first_name ? 'border-red-500' : ''
+                }`}
               />
+              {fieldErrors.first_name && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.first_name}</p>
+              )}
             </div>
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
@@ -372,10 +397,30 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={formData.last_name}
-                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow Hebrew letters and hyphen
+                  const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
+                  if (value === '' || hebrewPattern.test(value)) {
+                    setFormData({ ...formData, last_name: value });
+                    // Validate minimum 2 characters
+                    if (value.length > 0 && value.length < 2) {
+                      setFieldErrors({...fieldErrors, last_name: 'שם משפחה חייב להכיל לפחות 2 תווים'});
+                    } else {
+                      const newErrors = {...fieldErrors};
+                      delete newErrors.last_name;
+                      setFieldErrors(newErrors);
+                    }
+                  }
+                }}
                 required
-                className="w-full px-4 py-2 border rounded-lg text-right"
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.last_name ? 'border-red-500' : ''
+                }`}
               />
+              {fieldErrors.last_name && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.last_name}</p>
+              )}
             </div>
           </div>
 
@@ -386,10 +431,27 @@ export default function ProfilePage() {
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData({ ...formData, email: value });
+                // Validate email format
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (value.length > 0 && !emailRegex.test(value)) {
+                  setFieldErrors({...fieldErrors, email: 'אנא הזן אימייל תקין'});
+                } else {
+                  const newErrors = {...fieldErrors};
+                  delete newErrors.email;
+                  setFieldErrors(newErrors);
+                }
+              }}
               required
-              className="w-full px-4 py-2 border rounded-lg text-right"
+              className={`w-full px-4 py-2 border rounded-lg text-right ${
+                fieldErrors.email ? 'border-red-500' : ''
+              }`}
             />
+            {fieldErrors.email && (
+              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.email}</p>
+            )}
           </div>
 
           <div>
@@ -399,10 +461,29 @@ export default function ProfilePage() {
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                if (value.length <= 10) {
+                  setFormData({ ...formData, phone: value });
+                  // Validate 10 digits
+                  if (value.length > 0 && value.length !== 10) {
+                    setFieldErrors({...fieldErrors, phone: 'מספר טלפון חייב להכיל 10 ספרות'});
+                  } else {
+                    const newErrors = {...fieldErrors};
+                    delete newErrors.phone;
+                    setFieldErrors(newErrors);
+                  }
+                }
+              }}
               required
-              className="w-full px-4 py-2 border rounded-lg text-right"
+              className={`w-full px-4 py-2 border rounded-lg text-right ${
+                fieldErrors.phone ? 'border-red-500' : ''
+              }`}
+              maxLength={10}
             />
+            {fieldErrors.phone && (
+              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.phone}</p>
+            )}
           </div>
 
           <div>
@@ -412,10 +493,29 @@ export default function ProfilePage() {
             <input
               type="text"
               value={formData.id_number}
-              onChange={(e) => setFormData({ ...formData, id_number: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                if (value.length <= 9) {
+                  setFormData({ ...formData, id_number: value });
+                  // Validate 9 digits
+                  if (value.length > 0 && value.length !== 9) {
+                    setFieldErrors({...fieldErrors, id_number: 'תעודת זהות חייבת להכיל 9 ספרות'});
+                  } else {
+                    const newErrors = {...fieldErrors};
+                    delete newErrors.id_number;
+                    setFieldErrors(newErrors);
+                  }
+                }
+              }}
               required
-              className="w-full px-4 py-2 border rounded-lg text-right"
+              className={`w-full px-4 py-2 border rounded-lg text-right ${
+                fieldErrors.id_number ? 'border-red-500' : ''
+              }`}
+              maxLength={9}
             />
+            {fieldErrors.id_number && (
+              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.id_number}</p>
+            )}
           </div>
 
           <div>
@@ -503,10 +603,85 @@ export default function ProfilePage() {
             <input
               type="text"
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg text-right"
+              onChange={(e) => {
+                const value = e.target.value;
+                // Only allow Hebrew letters, numbers, and spaces
+                const addressPattern = /^[\u0590-\u05FF\s0-9]*$/;
+                if (value === '' || addressPattern.test(value)) {
+                  setFormData({ ...formData, address: value });
+                  const newErrors = {...fieldErrors};
+                  delete newErrors.address;
+                  setFieldErrors(newErrors);
+                }
+              }}
+              className={`w-full px-4 py-2 border rounded-lg text-right ${
+                fieldErrors.address ? 'border-red-500' : ''
+              }`}
               placeholder="הזן כתובת מגורים"
             />
+            {fieldErrors.address && (
+              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.address}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+              שם איש קשר
+            </label>
+            <input
+              type="text"
+              value={formData.contact_name}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Only allow Hebrew letters and hyphen
+                const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
+                if (value === '' || hebrewPattern.test(value)) {
+                  setFormData({ ...formData, contact_name: value });
+                  const newErrors = {...fieldErrors};
+                  delete newErrors.contact_name;
+                  setFieldErrors(newErrors);
+                }
+              }}
+              className={`w-full px-4 py-2 border rounded-lg text-right ${
+                fieldErrors.contact_name ? 'border-red-500' : ''
+              }`}
+              placeholder="הזן שם איש קשר"
+            />
+            {fieldErrors.contact_name && (
+              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.contact_name}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+              טלפון איש קשר
+            </label>
+            <input
+              type="tel"
+              value={formData.contact_phone}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                if (value.length <= 10) {
+                  setFormData({ ...formData, contact_phone: value });
+                  // Validate 10 digits
+                  if (value.length > 0 && value.length !== 10) {
+                    setFieldErrors({...fieldErrors, contact_phone: 'מספר טלפון איש קשר חייב להכיל 10 ספרות'});
+                  } else {
+                    const newErrors = {...fieldErrors};
+                    delete newErrors.contact_phone;
+                    setFieldErrors(newErrors);
+                  }
+                }
+              }}
+              className={`w-full px-4 py-2 border rounded-lg text-right ${
+                fieldErrors.contact_phone ? 'border-red-500' : ''
+              }`}
+              placeholder="הזן מספר טלפון איש קשר"
+              maxLength={10}
+            />
+            {fieldErrors.contact_phone && (
+              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.contact_phone}</p>
+            )}
           </div>
 
           <div>
