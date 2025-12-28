@@ -896,8 +896,10 @@ class ProfileViewSet(viewsets.ModelViewSet):
             user.email = user_data['email']
         user.save()
         
-        # Update profile fields - unit and city need special handling
+        # Update profile fields - unit, city, and address need special handling
         profile_data = self.request.data
+        
+        # Update unit (handles hierarchical selection: team > section > branch > unit)
         if 'unit' in profile_data:
             unit_id = profile_data['unit']
             if unit_id:
@@ -908,6 +910,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
             else:
                 profile.unit = None
         
+        # Update city
         if 'city' in profile_data:
             city_id = profile_data['city']
             if city_id:
@@ -918,7 +921,11 @@ class ProfileViewSet(viewsets.ModelViewSet):
             else:
                 profile.city = None
         
-        # Save profile with serializer (handles other fields like address, id_number)
+        # Update address explicitly to ensure it's saved
+        if 'address' in profile_data:
+            profile.address = profile_data['address'] or ''
+        
+        # Save profile with serializer (handles other fields like id_number, contact_name, contact_phone)
         serializer.save()
 
 

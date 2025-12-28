@@ -318,55 +318,55 @@ export default function ManagerDashboard() {
               <h2 className="text-2xl font-bold mb-4 text-right">פרטי בקשה</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">שם משתמש:</label>
-                  <p className="mt-1">{selectedRequest.user_username || selectedRequest.user?.username}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">שם פרטי:</label>
+                  <p className="mt-1 text-right">{selectedRequest.user_first_name || selectedRequest.user?.first_name || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">אימייל:</label>
-                  <p className="mt-1">{selectedRequest.user_email || selectedRequest.user?.email}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">שם משפחה:</label>
+                  <p className="mt-1 text-right">{selectedRequest.user_last_name || selectedRequest.user?.last_name || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">שם פרטי:</label>
-                  <p className="mt-1">{selectedRequest.user_first_name || selectedRequest.user?.first_name || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">תעודת זהות:</label>
+                  <p className="mt-1 text-right">{selectedRequest.profile_id_number || selectedRequest.user?.profile?.id_number || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">שם משפחה:</label>
-                  <p className="mt-1">{selectedRequest.user_last_name || selectedRequest.user?.last_name || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">שם איש קשר:</label>
+                  <p className="mt-1 text-right">{selectedRequest.profile_contact_name || selectedRequest.user?.profile?.contact_name || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">טלפון:</label>
-                  <p className="mt-1">{selectedRequest.user_phone || selectedRequest.user?.phone || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">כתובת מגורים:</label>
+                  <p className="mt-1 text-right">{selectedRequest.profile_address || selectedRequest.user?.profile?.address || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">תעודת זהות:</label>
-                  <p className="mt-1">{selectedRequest.profile_id_number || selectedRequest.user?.profile?.id_number || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">יחידה:</label>
+                  <p className="mt-1 text-right">{selectedRequest.profile_unit_name_he || selectedRequest.profile_unit_name || selectedRequest.user?.profile?.unit_name_he || selectedRequest.user?.profile?.unit_name || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">כתובת:</label>
-                  <p className="mt-1">{selectedRequest.profile_address || selectedRequest.user?.profile?.address || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">ענף:</label>
+                  <p className="mt-1 text-right">{selectedRequest.profile_branch_name_he || selectedRequest.profile_branch_name || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">עיר:</label>
-                  <p className="mt-1">{selectedRequest.profile_city_name_he || selectedRequest.profile_city_name || selectedRequest.user?.profile?.city_name_he || selectedRequest.user?.profile?.city_name || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">צוות:</label>
+                  <p className="mt-1 text-right">{selectedRequest.profile_team_name_he || selectedRequest.profile_team_name || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">יחידה:</label>
-                  <p className="mt-1">{selectedRequest.profile_unit_name_he || selectedRequest.profile_unit_name || selectedRequest.user?.profile?.unit_name_he || selectedRequest.user?.profile?.unit_name || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">מדור:</label>
+                  <p className="mt-1 text-right">{selectedRequest.profile_section_name_he || selectedRequest.profile_section_name || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">שם איש קשר:</label>
-                  <p className="mt-1">{selectedRequest.profile_contact_name || selectedRequest.user?.profile?.contact_name || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">טלפון:</label>
+                  <p className="mt-1 text-right">{selectedRequest.user_phone || selectedRequest.user?.phone || '-'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">טלפון איש קשר:</label>
-                  <p className="mt-1">{selectedRequest.profile_contact_phone || selectedRequest.user?.profile?.contact_phone || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">אימייל:</label>
+                  <p className="mt-1 text-right">{selectedRequest.user_email || selectedRequest.user?.email}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">תאריך הגשה:</label>
-                  <p className="mt-1">{new Date(selectedRequest.submitted_at).toLocaleString('he-IL')}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right">תאריך הגשה:</label>
+                  <p className="mt-1 text-right">{new Date(selectedRequest.submitted_at).toLocaleString('he-IL')}</p>
                 </div>
                 
-                {/* Role and Unit Selection */}
+                {/* Role Selection */}
                 <div className="border-t pt-4">
                   <h3 className="font-semibold mb-2 text-right">הגדר הרשאות:</h3>
                   <div className="space-y-2">
@@ -385,16 +385,6 @@ export default function ManagerDashboard() {
                         {userRole === 'system_manager' && <option value="system_manager">מנהל מערכת</option>}
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 text-right">יחידה:</label>
-                      <select
-                        id="request-unit"
-                        className="w-full px-4 py-2 border rounded-lg text-right mt-1"
-                      >
-                        <option value="">-- בחר יחידה --</option>
-                        {/* TODO: Load units */}
-                      </select>
-                    </div>
                   </div>
                 </div>
 
@@ -402,8 +392,7 @@ export default function ManagerDashboard() {
                   <button
                     onClick={() => {
                       const role = (document.getElementById('request-role') as HTMLSelectElement)?.value;
-                      const unitId = (document.getElementById('request-unit') as HTMLSelectElement)?.value;
-                      handleApprove(selectedRequest.id, role, unitId ? Number(unitId) : undefined);
+                      handleApprove(selectedRequest.id, role, undefined);
                     }}
                     className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"
                   >

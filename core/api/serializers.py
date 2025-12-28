@@ -39,7 +39,7 @@ class UnitSerializer(serializers.ModelSerializer):
         model = Unit
         fields = [
             'id', 'name', 'name_he', 'parent', 'parent_name',
-            'unit_type', 'code', 'created_at', 'updated_at', 'children_count'
+            'unit_type', 'code', 'order_number', 'created_at', 'updated_at', 'children_count'
         ]
         read_only_fields = ['created_at', 'updated_at']
     
@@ -365,6 +365,100 @@ class AccessRequestSerializer(serializers.ModelSerializer):
     profile_unit_name = serializers.CharField(source='user.profile.unit.name', read_only=True)
     profile_unit_name_he = serializers.CharField(source='user.profile.unit.name_he', read_only=True)
     
+    # Unit hierarchy fields (branch, section, team)
+    profile_branch_name = serializers.SerializerMethodField()
+    profile_branch_name_he = serializers.SerializerMethodField()
+    profile_section_name = serializers.SerializerMethodField()
+    profile_section_name_he = serializers.SerializerMethodField()
+    profile_team_name = serializers.SerializerMethodField()
+    profile_team_name_he = serializers.SerializerMethodField()
+    
+    def get_profile_branch_name(self, obj):
+        """Get branch name from unit hierarchy"""
+        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
+        if not unit:
+            return None
+        # If unit is a branch, return it
+        if unit.unit_type == 'branch':
+            return unit.name
+        # Otherwise, traverse up to find branch
+        current = unit.parent
+        while current:
+            if current.unit_type == 'branch':
+                return current.name
+            current = current.parent
+        return None
+    
+    def get_profile_branch_name_he(self, obj):
+        """Get branch name (Hebrew) from unit hierarchy"""
+        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
+        if not unit:
+            return None
+        if unit.unit_type == 'branch':
+            return unit.name_he
+        current = unit.parent
+        while current:
+            if current.unit_type == 'branch':
+                return current.name_he
+            current = current.parent
+        return None
+    
+    def get_profile_section_name(self, obj):
+        """Get section name from unit hierarchy"""
+        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
+        if not unit:
+            return None
+        if unit.unit_type == 'section':
+            return unit.name
+        current = unit.parent
+        while current:
+            if current.unit_type == 'section':
+                return current.name
+            current = current.parent
+        return None
+    
+    def get_profile_section_name_he(self, obj):
+        """Get section name (Hebrew) from unit hierarchy"""
+        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
+        if not unit:
+            return None
+        if unit.unit_type == 'section':
+            return unit.name_he
+        current = unit.parent
+        while current:
+            if current.unit_type == 'section':
+                return current.name_he
+            current = current.parent
+        return None
+    
+    def get_profile_team_name(self, obj):
+        """Get team name from unit hierarchy"""
+        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
+        if not unit:
+            return None
+        if unit.unit_type == 'team':
+            return unit.name
+        current = unit.parent
+        while current:
+            if current.unit_type == 'team':
+                return current.name
+            current = current.parent
+        return None
+    
+    def get_profile_team_name_he(self, obj):
+        """Get team name (Hebrew) from unit hierarchy"""
+        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
+        if not unit:
+            return None
+        if unit.unit_type == 'team':
+            return unit.name_he
+        current = unit.parent
+        while current:
+            if current.unit_type == 'team':
+                return current.name_he
+            current = current.parent
+        return None
+    
     class Meta:
         model = AccessRequest
         fields = [
@@ -373,6 +467,9 @@ class AccessRequestSerializer(serializers.ModelSerializer):
             'profile_id_number', 'profile_address', 'profile_city_name', 'profile_city_name_he',
             'profile_contact_name', 'profile_contact_phone',
             'profile_unit_name', 'profile_unit_name_he',
+            'profile_branch_name', 'profile_branch_name_he',
+            'profile_section_name', 'profile_section_name_he',
+            'profile_team_name', 'profile_team_name_he',
             'submitted_at', 'status', 'status_display',
             'approved_by', 'approved_by_username',
             'approved_at', 'rejection_reason'

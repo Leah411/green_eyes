@@ -38,13 +38,14 @@ class Unit(models.Model):
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children')
     unit_type = models.CharField(max_length=20, choices=UNIT_TYPE_CHOICES, default='unit')
     code = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="Unique organizational code")
+    order_number = models.IntegerField(default=0, help_text="Order for sorting siblings")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         verbose_name = "Unit"
         verbose_name_plural = "Units"
-        ordering = ['name']
+        ordering = ['order_number', 'name']
         indexes = [
             models.Index(fields=['parent', 'unit_type']),
         ]

@@ -120,7 +120,7 @@ export default function PermissionsDashboard() {
       await api.approveAccessRequest(
         selectedRequest.id,
         requestRole,
-        requestUnitId || undefined
+        undefined
       );
       
       setShowRequestForm(false);
@@ -229,7 +229,6 @@ export default function PermissionsDashboard() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם משתמש</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">אימייל</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">טלפון</th>
@@ -240,21 +239,20 @@ export default function PermissionsDashboard() {
                   <tbody className="divide-y divide-gray-200">
                     {accessRequests.map((request) => (
                       <tr key={request.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-right">{request.user_username || request.user?.username}</td>
                         <td className="px-6 py-4 text-right">{request.user_email || request.user?.email}</td>
                         <td className="px-6 py-4 text-right">
-                          {request.user?.first_name || ''} {request.user?.last_name || ''}
+                          {[request.user?.first_name || request.user_first_name, request.user?.last_name || request.user_last_name].filter(Boolean).join(' ') || '-'}
                         </td>
-                        <td className="px-6 py-4 text-right">{request.user?.phone || '-'}</td>
+                        <td className="px-6 py-4 text-right">{request.user?.phone || request.user_phone || '-'}</td>
                         <td className="px-6 py-4 text-right">
                           {new Date(request.submitted_at).toLocaleDateString('he-IL')}
                         </td>
                         <td className="px-6 py-4">
                           <button
                             onClick={() => openRequestForm(request)}
-                            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                            className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
                           >
-                            בקשה חדשה
+                            אישור בקשה
                           </button>
                         </td>
                       </tr>
@@ -293,7 +291,7 @@ export default function PermissionsDashboard() {
                         <td className="px-6 py-4 text-right">{user.username}</td>
                         <td className="px-6 py-4 text-right">{user.email}</td>
                         <td className="px-6 py-4 text-right">
-                          {user.first_name || ''} {user.last_name || ''}
+                          {[user.first_name, user.last_name].filter(Boolean).join(' ') || '-'}
                         </td>
                         <td className="px-6 py-4 text-right">
                           {roles.find(r => r.value === user.profile?.role)?.label || user.profile?.role || 'משתמש'}
@@ -342,44 +340,16 @@ export default function PermissionsDashboard() {
               {/* Display user registration data */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משתמש:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_username || selectedRequest.user?.username}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">אימייל:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_email || selectedRequest.user?.email}</p>
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם פרטי:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.first_name || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_first_name || selectedRequest.user?.first_name || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משפחה:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.last_name || '-'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.phone || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_last_name || selectedRequest.user?.last_name || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">תעודת זהות:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.profile?.id_number || '-'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.profile?.address || '-'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">עיר:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">
-                    {selectedRequest.profile_city_name_he || selectedRequest.profile_city_name || selectedRequest.user?.profile?.city_name_he || selectedRequest.user?.profile?.city_name || '-'}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">
-                    {selectedRequest.profile_unit_name_he || selectedRequest.profile_unit_name || selectedRequest.user?.profile?.unit_name_he || selectedRequest.user?.profile?.unit_name || '-'}
-                  </p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.profile_id_number || selectedRequest.user?.profile?.id_number || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם איש קשר:</label>
@@ -388,10 +358,40 @@ export default function PermissionsDashboard() {
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון איש קשר:</label>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת מגורים:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.profile_address || selectedRequest.user?.profile?.address || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">
-                    {selectedRequest.profile_contact_phone || selectedRequest.user?.profile?.contact_phone || '-'}
+                    {selectedRequest.profile_unit_name_he || selectedRequest.profile_unit_name || selectedRequest.user?.profile?.unit_name_he || selectedRequest.user?.profile?.unit_name || '-'}
                   </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">ענף:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">
+                    {selectedRequest.profile_branch_name_he || selectedRequest.profile_branch_name || '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">צוות:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">
+                    {selectedRequest.profile_team_name_he || selectedRequest.profile_team_name || '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">מדור:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">
+                    {selectedRequest.profile_section_name_he || selectedRequest.profile_section_name || '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_phone || selectedRequest.user?.phone || '-'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">אימייל:</label>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_email || selectedRequest.user?.email}</p>
                 </div>
               </div>
               
@@ -408,21 +408,6 @@ export default function PermissionsDashboard() {
                     {roles.map((role) => (
                       <option key={role.value} value={role.value}>
                         {role.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה:</label>
-                  <select
-                    value={requestUnitId || ''}
-                    onChange={(e) => setRequestUnitId(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                  >
-                    <option value="">ללא יחידה</option>
-                    {units.map((unit) => (
-                      <option key={unit.id} value={unit.id}>
-                        {unit.name_he || unit.name}
                       </option>
                     ))}
                   </select>
