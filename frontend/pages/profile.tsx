@@ -344,12 +344,6 @@ export default function ProfilePage() {
               >
                 {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
               </button>
-              <button
-                onClick={() => router.push('/home')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
-                חזרה
-              </button>
             </div>
           </div>
         </header>
@@ -742,13 +736,6 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex gap-4 justify-end">
-            <button
-              type="button"
-              onClick={() => router.push('/home')}
-              className="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-            >
-              ביטול
-            </button>
             <button
               type="submit"
               disabled={saving}

@@ -934,6 +934,7 @@ class UnitViewSet(viewsets.ModelViewSet):
     queryset = Unit.objects.prefetch_related('children', 'members').all()
     serializer_class = UnitSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination to return all units
     
     def get_queryset(self):
         """Filter units by parent_id if provided"""
@@ -950,6 +951,14 @@ class UnitViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(unit_type=unit_type)
         
         return queryset
+    
+    def perform_destroy(self, instance):
+        """Delete unit and all its descendants recursively.
+        Django's CASCADE will automatically delete all children.
+        This override ensures proper deletion order and can be extended for additional logic."""
+        # Django's CASCADE will handle deletion of all children automatically
+        # We just need to delete the unit itself
+        instance.delete()
     
     @action(detail=True, methods=['get'])
     def members(self, request, pk=None):

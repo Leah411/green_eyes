@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import api from '../../lib/api';
 import Cookies from 'js-cookie';
+import Sidebar from '../../components/Sidebar';
 
 export default function OrganizationalStructure() {
   const router = useRouter();
   const [units, setUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>('');
+  const [showSidebar, setShowSidebar] = useState<boolean>(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingUnit, setEditingUnit] = useState<any>(null);
   const [editingName, setEditingName] = useState<number | null>(null);
@@ -27,13 +30,37 @@ export default function OrganizationalStructure() {
       router.push('/');
       return;
     }
-    loadUnits();
+    checkPermissions();
   }, [router]);
+
+  const checkPermissions = async () => {
+    try {
+      const profileRes = await api.getProfile();
+      const profileData = profileRes.data.profile;
+      const role = profileData?.role || '';
+      setUserRole(role);
+
+      // Only system_manager and unit_manager can access this page
+      if (role !== 'system_manager' && role !== 'unit_manager') {
+        alert('אין לך הרשאה לגשת לדף זה. רק מנהל מערכת ומנהל יחידה יכולים לגשת.');
+        router.push('/home');
+        return;
+      }
+
+      loadUnits();
+    } catch (err: any) {
+      console.error('Failed to check permissions:', err);
+      if (err.response?.status === 403 || err.response?.status === 401) {
+        router.push('/');
+      }
+    }
+  };
 
   const loadUnits = async () => {
     try {
       const response = await api.listUnits();
-      setUnits(response.data.results || response.data || []);
+      const unitsData = response.data.results || response.data || [];
+      setUnits(unitsData);
     } catch (err) {
       console.error('Failed to load units:', err);
     } finally {
@@ -165,22 +192,41 @@ export default function OrganizationalStructure() {
   };
 
   const buildTree = (units: any[], parentId: number | null = null): any[] => {
-    return units
-      .filter(unit => {
-        if (parentId === null) return !unit.parent;
-        return unit.parent === parentId;
-      })
-      .sort((a, b) => {
-        // Sort by order_number first, then by name
-        if (a.order_number !== b.order_number) {
-          return (a.order_number || 0) - (b.order_number || 0);
-        }
-        return (a.name || '').localeCompare(b.name || '');
-      })
-      .map(unit => ({
-        ...unit,
-        children: buildTree(units, unit.id),
-      }));
+    const filtered = units.filter(unit => {
+      // Handle both cases: parent can be a number (ID) or null/undefined
+      // The API returns parent as a number (ID), not an object
+      let unitParentId: number | null = null;
+      
+      if (unit.parent === null || unit.parent === undefined) {
+        unitParentId = null;
+      } else if (typeof unit.parent === 'object' && unit.parent !== null) {
+        // If it's an object, get the ID
+        unitParentId = unit.parent.id || null;
+      } else if (typeof unit.parent === 'number') {
+        // If it's already a number, use it directly
+        unitParentId = unit.parent;
+      }
+      
+      if (parentId === null) {
+        // Looking for root units (no parent)
+        return unitParentId === null;
+      }
+      // Looking for children of a specific parent
+      return unitParentId === parentId;
+    });
+    
+    const sorted = filtered.sort((a, b) => {
+      // Sort by order_number first, then by name
+      if (a.order_number !== b.order_number) {
+        return (a.order_number || 0) - (b.order_number || 0);
+      }
+      return (a.name_he || a.name || '').localeCompare(b.name_he || b.name || '');
+    });
+    
+    return sorted.map(unit => ({
+      ...unit,
+      children: buildTree(units, unit.id),
+    }));
   };
 
   const renderUnit = (unit: any, level: number = 0, siblings: any[] = []) => {
@@ -207,16 +253,16 @@ export default function OrganizationalStructure() {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-gray-400">⋮⋮</span>
-              {isEditingName ? (
+              {isEditingNameHe ? (
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => handleNameSave(unit, 'name')}
+                    onBlur={() => handleNameSave(unit, 'name_he')}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        handleNameSave(unit, 'name');
+                        handleNameSave(unit, 'name_he');
                       } else if (e.key === 'Escape') {
                         handleNameCancel();
                       }
@@ -228,23 +274,23 @@ export default function OrganizationalStructure() {
               ) : (
                 <div
                   className="font-semibold cursor-pointer hover:text-blue-600"
-                  onDoubleClick={() => handleNameEdit(unit, 'name')}
+                  onDoubleClick={() => handleNameEdit(unit, 'name_he')}
                   title="לחיצה כפולה לעריכה"
                 >
-                  {unit.name}
+                  {unit.name_he || unit.name}
                 </div>
               )}
             </div>
-            {isEditingNameHe ? (
+            {isEditingName ? (
               <div className="flex items-center gap-2 mb-1">
                 <input
                   type="text"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={() => handleNameSave(unit, 'name_he')}
+                  onBlur={() => handleNameSave(unit, 'name')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      handleNameSave(unit, 'name_he');
+                      handleNameSave(unit, 'name');
                     } else if (e.key === 'Escape') {
                       handleNameCancel();
                     }
@@ -254,13 +300,13 @@ export default function OrganizationalStructure() {
                 />
               </div>
             ) : (
-              unit.name_he && (
+              unit.name && (
                 <div
                   className="text-sm text-gray-600 cursor-pointer hover:text-blue-600"
-                  onDoubleClick={() => handleNameEdit(unit, 'name_he')}
+                  onDoubleClick={() => handleNameEdit(unit, 'name')}
                   title="לחיצה כפולה לעריכה"
                 >
-                  {unit.name_he}
+                  {unit.name}
                 </div>
               )
             )}
@@ -339,37 +385,39 @@ export default function OrganizationalStructure() {
   const tree = buildTree(units);
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-green-600">ניהול מבנה ארגוני</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              גרור יחידות לסידור מחדש • לחיצה כפולה על שם לעריכה
-            </p>
+    <div className="min-h-screen bg-gray-50 flex" dir="rtl">
+      {/* Main Content */}
+      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'mr-80' : ''}`}>
+        <header className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-green-600">ניהול מבנה ארגוני</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                גרור יחידות לסידור מחדש • לחיצה כפולה על שם לעריכה
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingUnit(null);
+                  setFormData({ name: '', name_he: '', unit_type: 'unit', parent: null, code: '' });
+                  setShowAddForm(true);
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                הוסף יחידה
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => router.push('/dashboard/manager')}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-            >
-              חזרה
-            </button>
-            <button
-              onClick={() => {
-                setEditingUnit(null);
-                setFormData({ name: '', name_he: '', unit_type: 'unit', parent: null, code: '' });
-                setShowAddForm(true);
-              }}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              הוסף יחידה
-            </button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+        <main className="max-w-7xl mx-auto px-4 py-8">
         {showAddForm && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4 text-right">
@@ -380,8 +428,8 @@ export default function OrganizationalStructure() {
                 <label className="block text-right text-sm font-medium mb-1">שם (עברית)</label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.name_he}
+                  onChange={(e) => setFormData({ ...formData, name_he: e.target.value })}
                   required
                   className="w-full px-4 py-2 border rounded-lg text-right"
                 />
@@ -390,8 +438,8 @@ export default function OrganizationalStructure() {
                 <label className="block text-right text-sm font-medium mb-1">שם (אנגלית)</label>
                 <input
                   type="text"
-                  value={formData.name_he}
-                  onChange={(e) => setFormData({ ...formData, name_he: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg text-right"
                 />
               </div>
@@ -419,7 +467,7 @@ export default function OrganizationalStructure() {
                   <option value="">-- ללא יחידה אב --</option>
                   {units.map((unit) => (
                     <option key={unit.id} value={unit.id}>
-                      {unit.name}
+                      {unit.name_he || unit.name}
                     </option>
                   ))}
                 </select>
@@ -466,6 +514,10 @@ export default function OrganizationalStructure() {
           )}
         </div>
       </main>
+      </div>
+
+      {/* Sidebar */}
+      <Sidebar showSidebar={showSidebar} setShowSidebar={setShowSidebar} userRole={userRole} />
     </div>
   );
 }

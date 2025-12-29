@@ -204,12 +204,6 @@ export default function PermissionsDashboard() {
               >
                 {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
               </button>
-              <button
-                onClick={() => router.push('/dashboard/manager')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
-                חזרה לדשבורד
-              </button>
             </div>
           </div>
         </header>
