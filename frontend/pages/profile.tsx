@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import Cookies from 'js-cookie';
 import Sidebar from '../components/Sidebar';
-import SearchableLocationSelect from '../components/SearchableLocationSelect';
 
 export default function ProfilePage() {
   const { t } = useTranslation();
@@ -13,11 +12,8 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [units, setUnits] = useState<any[]>([]);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isManager, setIsManager] = useState(false);
@@ -29,14 +25,9 @@ export default function ProfilePage() {
     phone: '',
     id_number: '',
     unit_id: null as number | null,
-    branch_id: null as number | null,
-    section_id: null as number | null,
-    team_id: null as number | null,
     role: 'user',
     address: '',
     city_id: null as number | null,
-    contact_name: '',
-    contact_phone: '',
     in_reserves: false,
     reserves_date: '',
   });
@@ -52,79 +43,21 @@ export default function ProfilePage() {
 
   const loadData = async () => {
     try {
-      const [profileRes, unitsRes] = await Promise.all([
+      const [profileRes, unitsRes, locationsRes] = await Promise.all([
         api.getProfile(),
-        api.getUnitsByParent(null, 'unit'), // Get root units
+        api.listUnits(),
+        api.listLocations(),
       ]);
       
       const userData = profileRes.data;
       setUser(userData);
       setProfile(userData.profile);
-      const unitsData = unitsRes.data.results || unitsRes.data || [];
-      const unitsArray = Array.isArray(unitsData) ? unitsData : [];
-      // Filter out "יחידה ראשית" (Main Unit) with ID 1
-      const filteredUnits = unitsArray.filter((unit: any) => unit.id !== 1);
-      setUnits(filteredUnits);
+      setUnits(unitsRes.data.results || unitsRes.data || []);
+      setLocations(locationsRes.data.results || locationsRes.data || []);
       
       // Check if user is manager
       const userRole = userData.profile?.role || '';
       setIsManager(['system_manager', 'unit_manager', 'branch_manager', 'section_manager', 'team_manager', 'admin'].includes(userRole));
-      
-      // Get the user's unit and determine hierarchy by traversing up the parent chain
-      const userUnit = userData.profile?.unit;
-      let unitId = null;
-      let branchId = null;
-      let sectionId = null;
-      let teamId = null;
-      
-      if (userUnit && userUnit.id) {
-        try {
-          // Start from the user's unit and traverse up
-          let currentUnitId = userUnit.id;
-          let currentUnit = userUnit;
-          
-          // Determine the current level and set IDs
-          if (currentUnit.unit_type === 'team') {
-            teamId = currentUnit.id;
-            currentUnitId = currentUnit.parent;
-          } else if (currentUnit.unit_type === 'section') {
-            sectionId = currentUnit.id;
-            currentUnitId = currentUnit.parent;
-          } else if (currentUnit.unit_type === 'branch') {
-            branchId = currentUnit.id;
-            currentUnitId = currentUnit.parent;
-          } else {
-            unitId = currentUnit.id;
-            currentUnitId = null;
-          }
-          
-          // Traverse up the parent chain
-          while (currentUnitId) {
-            try {
-              const parentRes = await api.getUnit(currentUnitId);
-              const parent = parentRes.data;
-              
-              if (parent.unit_type === 'section') {
-                sectionId = parent.id;
-                currentUnitId = parent.parent;
-              } else if (parent.unit_type === 'branch') {
-                branchId = parent.id;
-                currentUnitId = parent.parent;
-              } else if (parent.unit_type === 'unit') {
-                unitId = parent.id;
-                currentUnitId = null;
-              } else {
-                break;
-              }
-            } catch (err) {
-              console.error('Failed to load parent unit:', err);
-              break;
-            }
-          }
-        } catch (err) {
-          console.error('Failed to load unit hierarchy:', err);
-        }
-      }
       
       // Populate form
       setFormData({
@@ -133,123 +66,18 @@ export default function ProfilePage() {
         email: userData.email || '',
         phone: userData.phone || '',
         id_number: userData.profile?.id_number || '',
-        unit_id: unitId,
-        branch_id: branchId,
-        section_id: sectionId,
-        team_id: teamId,
+        unit_id: userData.profile?.unit || null,
         role: userData.profile?.role || 'user',
         address: userData.profile?.address || '',
         city_id: userData.profile?.city || null,
-        contact_name: userData.profile?.contact_name || '',
-        contact_phone: userData.profile?.contact_phone || '',
         in_reserves: false, // TODO: Add reserves field to model
         reserves_date: '', // TODO: Add reserves_date field to model
       });
-      
-      // Load branches, sections, teams if needed
-      if (unitId) {
-        loadBranches(unitId);
-      }
-      if (branchId) {
-        loadSections(branchId);
-      }
-      if (sectionId) {
-        loadTeams(sectionId);
-      }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadBranches = async (parentId: number) => {
-    try {
-      const branchesRes = await api.getUnitsByParent(parentId, 'branch');
-      const branchesData = branchesRes.data.results || branchesRes.data || [];
-      setBranches(Array.isArray(branchesData) ? branchesData : []);
-    } catch (err) {
-      console.error('Failed to load branches:', err);
-      setBranches([]);
-    }
-  };
-
-  const loadSections = async (parentId: number) => {
-    try {
-      const sectionsRes = await api.getUnitsByParent(parentId, 'section');
-      const sectionsData = sectionsRes.data.results || sectionsRes.data || [];
-      setSections(Array.isArray(sectionsData) ? sectionsData : []);
-    } catch (err) {
-      console.error('Failed to load sections:', err);
-      setSections([]);
-    }
-  };
-
-  const loadTeams = async (parentId: number) => {
-    try {
-      const teamsRes = await api.getUnitsByParent(parentId, 'team');
-      const teamsData = teamsRes.data.results || teamsRes.data || [];
-      setTeams(Array.isArray(teamsData) ? teamsData : []);
-    } catch (err) {
-      console.error('Failed to load teams:', err);
-      setTeams([]);
-    }
-  };
-
-  const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedUnitId = e.target.value ? Number(e.target.value) : null;
-    setFormData({
-      ...formData,
-      unit_id: selectedUnitId,
-      branch_id: null,
-      section_id: null,
-      team_id: null,
-    });
-    setBranches([]);
-    setSections([]);
-    setTeams([]);
-    
-    if (selectedUnitId) {
-      loadBranches(selectedUnitId);
-    }
-  };
-
-  const handleBranchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedBranchId = e.target.value ? Number(e.target.value) : null;
-    setFormData({
-      ...formData,
-      branch_id: selectedBranchId,
-      section_id: null,
-      team_id: null,
-    });
-    setSections([]);
-    setTeams([]);
-    
-    if (selectedBranchId) {
-      loadSections(selectedBranchId);
-    }
-  };
-
-  const handleSectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedSectionId = e.target.value ? Number(e.target.value) : null;
-    setFormData({
-      ...formData,
-      section_id: selectedSectionId,
-      team_id: null,
-    });
-    setTeams([]);
-    
-    if (selectedSectionId) {
-      loadTeams(selectedSectionId);
-    }
-  };
-
-  const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedTeamId = e.target.value ? Number(e.target.value) : null;
-    setFormData({
-      ...formData,
-      team_id: selectedTeamId,
-    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -266,23 +94,12 @@ export default function ProfilePage() {
       return;
     }
 
-    // Use the most specific unit selected (team > section > branch > unit)
-    const finalUnitId = formData.team_id || formData.section_id || formData.branch_id || formData.unit_id;
-    
-    // Validate unit is selected
-    if (!finalUnitId) {
-      setError('יש לבחור יחידה');
-      setSaving(false);
-      return;
-    }
-
     try {
       // Update profile if exists
       if (profile && profile.id) {
-        
         const profileUpdateData: any = {
           id_number: formData.id_number,
-          unit: finalUnitId,
+          unit: formData.unit_id,
           address: formData.address,
           city: formData.city_id,
           // Include user fields in profile update
@@ -344,6 +161,12 @@ export default function ProfilePage() {
               >
                 {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
               </button>
+              <button
+                onClick={() => router.push('/home')}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                חזרה
+              </button>
             </div>
           </div>
         </header>
@@ -370,30 +193,10 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={formData.first_name}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Only allow Hebrew letters and hyphen
-                  const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
-                  if (value === '' || hebrewPattern.test(value)) {
-                    setFormData({ ...formData, first_name: value });
-                    // Validate minimum 2 characters
-                    if (value.length > 0 && value.length < 2) {
-                      setFieldErrors({...fieldErrors, first_name: 'שם פרטי חייב להכיל לפחות 2 תווים'});
-                    } else {
-                      const newErrors = {...fieldErrors};
-                      delete newErrors.first_name;
-                      setFieldErrors(newErrors);
-                    }
-                  }
-                }}
+                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                 required
-                className={`w-full px-4 py-2 border rounded-lg text-right ${
-                  fieldErrors.first_name ? 'border-red-500' : ''
-                }`}
+                className="w-full px-4 py-2 border rounded-lg text-right"
               />
-              {fieldErrors.first_name && (
-                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.first_name}</p>
-              )}
             </div>
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
@@ -402,30 +205,10 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={formData.last_name}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Only allow Hebrew letters and hyphen
-                  const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
-                  if (value === '' || hebrewPattern.test(value)) {
-                    setFormData({ ...formData, last_name: value });
-                    // Validate minimum 2 characters
-                    if (value.length > 0 && value.length < 2) {
-                      setFieldErrors({...fieldErrors, last_name: 'שם משפחה חייב להכיל לפחות 2 תווים'});
-                    } else {
-                      const newErrors = {...fieldErrors};
-                      delete newErrors.last_name;
-                      setFieldErrors(newErrors);
-                    }
-                  }
-                }}
+                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                 required
-                className={`w-full px-4 py-2 border rounded-lg text-right ${
-                  fieldErrors.last_name ? 'border-red-500' : ''
-                }`}
+                className="w-full px-4 py-2 border rounded-lg text-right"
               />
-              {fieldErrors.last_name && (
-                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.last_name}</p>
-              )}
             </div>
           </div>
 
@@ -436,27 +219,10 @@ export default function ProfilePage() {
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => {
-                const value = e.target.value;
-                setFormData({ ...formData, email: value });
-                // Validate email format
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (value.length > 0 && !emailRegex.test(value)) {
-                  setFieldErrors({...fieldErrors, email: 'אנא הזן אימייל תקין'});
-                } else {
-                  const newErrors = {...fieldErrors};
-                  delete newErrors.email;
-                  setFieldErrors(newErrors);
-                }
-              }}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
-              className={`w-full px-4 py-2 border rounded-lg text-right ${
-                fieldErrors.email ? 'border-red-500' : ''
-              }`}
+              className="w-full px-4 py-2 border rounded-lg text-right"
             />
-            {fieldErrors.email && (
-              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.email}</p>
-            )}
           </div>
 
           <div>
@@ -466,29 +232,10 @@ export default function ProfilePage() {
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, ''); // Only numbers
-                if (value.length <= 10) {
-                  setFormData({ ...formData, phone: value });
-                  // Validate 10 digits
-                  if (value.length > 0 && value.length !== 10) {
-                    setFieldErrors({...fieldErrors, phone: 'מספר טלפון חייב להכיל 10 ספרות'});
-                  } else {
-                    const newErrors = {...fieldErrors};
-                    delete newErrors.phone;
-                    setFieldErrors(newErrors);
-                  }
-                }
-              }}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               required
-              className={`w-full px-4 py-2 border rounded-lg text-right ${
-                fieldErrors.phone ? 'border-red-500' : ''
-              }`}
-              maxLength={10}
+              className="w-full px-4 py-2 border rounded-lg text-right"
             />
-            {fieldErrors.phone && (
-              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.phone}</p>
-            )}
           </div>
 
           <div>
@@ -498,39 +245,19 @@ export default function ProfilePage() {
             <input
               type="text"
               value={formData.id_number}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, ''); // Only numbers
-                if (value.length <= 9) {
-                  setFormData({ ...formData, id_number: value });
-                  // Validate 9 digits
-                  if (value.length > 0 && value.length !== 9) {
-                    setFieldErrors({...fieldErrors, id_number: 'תעודת זהות חייבת להכיל 9 ספרות'});
-                  } else {
-                    const newErrors = {...fieldErrors};
-                    delete newErrors.id_number;
-                    setFieldErrors(newErrors);
-                  }
-                }
-              }}
+              onChange={(e) => setFormData({ ...formData, id_number: e.target.value })}
               required
-              className={`w-full px-4 py-2 border rounded-lg text-right ${
-                fieldErrors.id_number ? 'border-red-500' : ''
-              }`}
-              maxLength={9}
+              className="w-full px-4 py-2 border rounded-lg text-right"
             />
-            {fieldErrors.id_number && (
-              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.id_number}</p>
-            )}
           </div>
 
           <div>
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-              יחידה <span className="text-red-500">*</span>
+              יחידה
             </label>
             <select
               value={formData.unit_id || ''}
-              onChange={handleUnitChange}
-              required
+              onChange={(e) => setFormData({ ...formData, unit_id: e.target.value ? Number(e.target.value) : null })}
               className="w-full px-4 py-2 border rounded-lg text-right"
             >
               <option value="">-- בחר יחידה --</option>
@@ -542,66 +269,6 @@ export default function ProfilePage() {
             </select>
           </div>
 
-          {formData.unit_id && (
-            <div>
-              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                ענף
-              </label>
-              <select
-                value={formData.branch_id || ''}
-                onChange={handleBranchChange}
-                className="w-full px-4 py-2 border rounded-lg text-right"
-              >
-                <option value="">-- בחר ענף --</option>
-                {branches && Array.isArray(branches) && branches.length > 0 && branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name_he || branch.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {formData.branch_id && (
-            <div>
-              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                מדור
-              </label>
-              <select
-                value={formData.section_id || ''}
-                onChange={handleSectionChange}
-                className="w-full px-4 py-2 border rounded-lg text-right"
-              >
-                <option value="">-- בחר מדור --</option>
-                {sections && Array.isArray(sections) && sections.length > 0 && sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.name_he || section.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {formData.section_id && (
-            <div>
-              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                צוות
-              </label>
-              <select
-                value={formData.team_id || ''}
-                onChange={handleTeamChange}
-                className="w-full px-4 py-2 border rounded-lg text-right"
-              >
-                <option value="">-- בחר צוות --</option>
-                {teams && Array.isArray(teams) && teams.length > 0 && teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name_he || team.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <div>
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">
               כתובת מגורים
@@ -609,96 +276,28 @@ export default function ProfilePage() {
             <input
               type="text"
               value={formData.address}
-              onChange={(e) => {
-                const value = e.target.value;
-                // Only allow Hebrew letters, numbers, and spaces
-                const addressPattern = /^[\u0590-\u05FF\s0-9]*$/;
-                if (value === '' || addressPattern.test(value)) {
-                  setFormData({ ...formData, address: value });
-                  const newErrors = {...fieldErrors};
-                  delete newErrors.address;
-                  setFieldErrors(newErrors);
-                }
-              }}
-              className={`w-full px-4 py-2 border rounded-lg text-right ${
-                fieldErrors.address ? 'border-red-500' : ''
-              }`}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg text-right"
               placeholder="הזן כתובת מגורים"
             />
-            {fieldErrors.address && (
-              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.address}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-              שם איש קשר
-            </label>
-            <input
-              type="text"
-              value={formData.contact_name}
-              onChange={(e) => {
-                const value = e.target.value;
-                // Only allow Hebrew letters and hyphen
-                const hebrewPattern = /^[\u0590-\u05FF\s-]*$/;
-                if (value === '' || hebrewPattern.test(value)) {
-                  setFormData({ ...formData, contact_name: value });
-                  const newErrors = {...fieldErrors};
-                  delete newErrors.contact_name;
-                  setFieldErrors(newErrors);
-                }
-              }}
-              className={`w-full px-4 py-2 border rounded-lg text-right ${
-                fieldErrors.contact_name ? 'border-red-500' : ''
-              }`}
-              placeholder="הזן שם איש קשר"
-            />
-            {fieldErrors.contact_name && (
-              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.contact_name}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-              טלפון איש קשר
-            </label>
-            <input
-              type="tel"
-              value={formData.contact_phone}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, ''); // Only numbers
-                if (value.length <= 10) {
-                  setFormData({ ...formData, contact_phone: value });
-                  // Validate 10 digits
-                  if (value.length > 0 && value.length !== 10) {
-                    setFieldErrors({...fieldErrors, contact_phone: 'מספר טלפון איש קשר חייב להכיל 10 ספרות'});
-                  } else {
-                    const newErrors = {...fieldErrors};
-                    delete newErrors.contact_phone;
-                    setFieldErrors(newErrors);
-                  }
-                }
-              }}
-              className={`w-full px-4 py-2 border rounded-lg text-right ${
-                fieldErrors.contact_phone ? 'border-red-500' : ''
-              }`}
-              placeholder="הזן מספר טלפון איש קשר"
-              maxLength={10}
-            />
-            {fieldErrors.contact_phone && (
-              <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.contact_phone}</p>
-            )}
           </div>
 
           <div>
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">
               עיר מגורים
             </label>
-            <SearchableLocationSelect
-              value={formData.city_id}
-              onChange={(cityId) => setFormData({ ...formData, city_id: cityId })}
-              placeholder="חפש עיר או ישוב..."
-            />
+            <select
+              value={formData.city_id || ''}
+              onChange={(e) => setFormData({ ...formData, city_id: e.target.value ? Number(e.target.value) : null })}
+              className="w-full px-4 py-2 border rounded-lg text-right"
+            >
+              <option value="">-- בחר עיר --</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name_he || location.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Reserves Section */}
@@ -736,6 +335,13 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex gap-4 justify-end">
+            <button
+              type="button"
+              onClick={() => router.push('/home')}
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            >
+              ביטול
+            </button>
             <button
               type="submit"
               disabled={saving}

@@ -85,12 +85,6 @@ AUTH_USER_MODEL = 'core.User'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Determine SSL mode based on environment
-# In CI environments (like GitHub Actions), disable SSL
-# In production, use 'require' or 'prefer'
-is_ci = os.getenv('CI') == 'true' or os.getenv('GITHUB_ACTIONS') == 'true'
-ssl_mode = 'disable' if is_ci else os.getenv('DB_SSLMODE', 'prefer')
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -99,9 +93,6 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASS'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
-        'OPTIONS': {
-            'sslmode': ssl_mode,
-        },
     }
 }
 

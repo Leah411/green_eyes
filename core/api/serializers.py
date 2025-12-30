@@ -39,7 +39,7 @@ class UnitSerializer(serializers.ModelSerializer):
         model = Unit
         fields = [
             'id', 'name', 'name_he', 'parent', 'parent_name',
-            'unit_type', 'code', 'order_number', 'created_at', 'updated_at', 'children_count'
+            'unit_type', 'code', 'created_at', 'updated_at', 'children_count'
         ]
         read_only_fields = ['created_at', 'updated_at']
     
@@ -62,7 +62,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_username', 'user_email',
             'unit', 'unit_name', 'role', 'role_display',
             'id_number', 'address', 'city', 'city_name', 'city_name_he',
-            'contact_name', 'contact_phone',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -89,15 +88,11 @@ class UserSignupSerializer(serializers.ModelSerializer):
     """Serializer for user registration"""
     password = serializers.CharField(
         write_only=True, 
-        required=False,
-        allow_blank=True,
         validators=[validate_password],
         style={'input_type': 'password'}
     )
     password2 = serializers.CharField(
         write_only=True, 
-        required=False,
-        allow_blank=True,
         label='Confirm Password',
         style={'input_type': 'password'}
     )
@@ -111,18 +106,15 @@ class UserSignupSerializer(serializers.ModelSerializer):
     )
     address = serializers.CharField(write_only=True, required=False, allow_blank=True)
     city_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
-    contact_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    contact_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     class Meta:
         model = User
         fields = (
             'username', 'email', 'password', 'password2',
             'first_name', 'last_name', 'phone', 'id_number', 'unit_id', 'role',
-            'address', 'city_id', 'contact_name', 'contact_phone'
+            'address', 'city_id'
         )
         extra_kwargs = {
-            'username': {'required': False},
             'email': {'required': True},
             'first_name': {'required': False},
             'last_name': {'required': False},
@@ -137,11 +129,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         """Validate password match and unit exists"""
-        password = attrs.get('password', '')
-        password2 = attrs.get('password2', '')
-        
-        # Only validate password match if passwords are provided
-        if password and password2 and password != password2:
+        if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
         
         unit_id = attrs.get('unit_id')
@@ -162,59 +150,22 @@ class UserSignupSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create user, profile, and access request"""
-        import secrets
-        import string
-        
-        password = validated_data.pop('password', None)
-        validated_data.pop('password2', None)
+        password = validated_data.pop('password')
+        validated_data.pop('password2')
         id_number = validated_data.pop('id_number', '')
         unit_id = validated_data.pop('unit_id', None)
         role = validated_data.pop('role', 'user')
         address = validated_data.pop('address', '')
         city_id = validated_data.pop('city_id', None)
-        contact_name = validated_data.pop('contact_name', '')
-        contact_phone = validated_data.pop('contact_phone', '')
         
-        # Get email and username
-        email = validated_data.pop('email', '')
-        username = validated_data.pop('username', None)
-        if not username:
-            # Use email prefix as username, or generate unique one
-            username_base = email.split('@')[0]
-            username = username_base
-            counter = 1
-            while User.objects.filter(username=username).exists():
-                username = f"{username_base}{counter}"
-                counter += 1
-        
-        # Generate random password if not provided
-        if not password:
-            # Generate a secure random password
-            alphabet = string.ascii_letters + string.digits + string.punctuation
-            password = ''.join(secrets.choice(alphabet) for i in range(16))
-        
-        # Create user with registration data
-        # All data from registration form is saved here:
-        # - User fields: first_name, last_name, phone, email
-        user_data = {
-            'username': username,
-            'email': email,
-            'password': password,
-        }
-        # Add other user fields from registration form
-        for key in ['first_name', 'last_name', 'phone']:
-            if key in validated_data:
-                user_data[key] = validated_data[key]
-        
-        user = User.objects.create_user(**user_data)
+        # Create user
+        user = User.objects.create_user(**validated_data)
+        user.set_password(password)
         user.is_active = True
         user.is_approved = False  # Requires admin approval
         user.save()
         
-        # Create profile with all registration data
-        # All data from registration form is saved here:
-        # - Profile fields: id_number, address, city, unit
-        # These will be automatically transferred to the user's profile page after approval
+        # Create profile
         unit = Unit.objects.get(id=unit_id) if unit_id else None
         city = Location.objects.get(id=city_id) if city_id else None
         Profile.objects.create(
@@ -223,9 +174,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
             role=role,
             id_number=id_number,
             address=address,
-            city=city,
-            contact_name=contact_name,
-            contact_phone=contact_phone
+            city=city
         )
         
         # Create access request
@@ -355,121 +304,12 @@ class AccessRequestSerializer(serializers.ModelSerializer):
     user_phone = serializers.CharField(source='user.phone', read_only=True)
     approved_by_username = serializers.CharField(source='approved_by.username', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    # Profile fields
-    profile_id_number = serializers.CharField(source='user.profile.id_number', read_only=True)
-    profile_address = serializers.CharField(source='user.profile.address', read_only=True)
-    profile_city_name = serializers.CharField(source='user.profile.city.name', read_only=True)
-    profile_city_name_he = serializers.CharField(source='user.profile.city.name_he', read_only=True)
-    profile_contact_name = serializers.CharField(source='user.profile.contact_name', read_only=True)
-    profile_contact_phone = serializers.CharField(source='user.profile.contact_phone', read_only=True)
-    profile_unit_name = serializers.CharField(source='user.profile.unit.name', read_only=True)
-    profile_unit_name_he = serializers.CharField(source='user.profile.unit.name_he', read_only=True)
-    
-    # Unit hierarchy fields (branch, section, team)
-    profile_branch_name = serializers.SerializerMethodField()
-    profile_branch_name_he = serializers.SerializerMethodField()
-    profile_section_name = serializers.SerializerMethodField()
-    profile_section_name_he = serializers.SerializerMethodField()
-    profile_team_name = serializers.SerializerMethodField()
-    profile_team_name_he = serializers.SerializerMethodField()
-    
-    def get_profile_branch_name(self, obj):
-        """Get branch name from unit hierarchy"""
-        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
-        if not unit:
-            return None
-        # If unit is a branch, return it
-        if unit.unit_type == 'branch':
-            return unit.name
-        # Otherwise, traverse up to find branch
-        current = unit.parent
-        while current:
-            if current.unit_type == 'branch':
-                return current.name
-            current = current.parent
-        return None
-    
-    def get_profile_branch_name_he(self, obj):
-        """Get branch name (Hebrew) from unit hierarchy"""
-        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
-        if not unit:
-            return None
-        if unit.unit_type == 'branch':
-            return unit.name_he
-        current = unit.parent
-        while current:
-            if current.unit_type == 'branch':
-                return current.name_he
-            current = current.parent
-        return None
-    
-    def get_profile_section_name(self, obj):
-        """Get section name from unit hierarchy"""
-        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
-        if not unit:
-            return None
-        if unit.unit_type == 'section':
-            return unit.name
-        current = unit.parent
-        while current:
-            if current.unit_type == 'section':
-                return current.name
-            current = current.parent
-        return None
-    
-    def get_profile_section_name_he(self, obj):
-        """Get section name (Hebrew) from unit hierarchy"""
-        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
-        if not unit:
-            return None
-        if unit.unit_type == 'section':
-            return unit.name_he
-        current = unit.parent
-        while current:
-            if current.unit_type == 'section':
-                return current.name_he
-            current = current.parent
-        return None
-    
-    def get_profile_team_name(self, obj):
-        """Get team name from unit hierarchy"""
-        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
-        if not unit:
-            return None
-        if unit.unit_type == 'team':
-            return unit.name
-        current = unit.parent
-        while current:
-            if current.unit_type == 'team':
-                return current.name
-            current = current.parent
-        return None
-    
-    def get_profile_team_name_he(self, obj):
-        """Get team name (Hebrew) from unit hierarchy"""
-        unit = obj.user.profile.unit if hasattr(obj.user, 'profile') and obj.user.profile.unit else None
-        if not unit:
-            return None
-        if unit.unit_type == 'team':
-            return unit.name_he
-        current = unit.parent
-        while current:
-            if current.unit_type == 'team':
-                return current.name_he
-            current = current.parent
-        return None
     
     class Meta:
         model = AccessRequest
         fields = [
             'id', 'user', 'user_username', 'user_email',
             'user_first_name', 'user_last_name', 'user_phone',
-            'profile_id_number', 'profile_address', 'profile_city_name', 'profile_city_name_he',
-            'profile_contact_name', 'profile_contact_phone',
-            'profile_unit_name', 'profile_unit_name_he',
-            'profile_branch_name', 'profile_branch_name_he',
-            'profile_section_name', 'profile_section_name_he',
-            'profile_team_name', 'profile_team_name_he',
             'submitted_at', 'status', 'status_display',
             'approved_by', 'approved_by_username',
             'approved_at', 'rejection_reason'

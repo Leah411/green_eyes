@@ -389,24 +389,14 @@ def approve_access_request_view(request, request_id):
             'error': 'Access request already approved.'
         }, status=status.HTTP_400_BAD_REQUEST)
     
+    # Approve the request
+    access_request.approve(request.user)
+    
     # Get the user and profile (profile was already created during registration with all data)
+    # All registration data (user fields: first_name, last_name, phone, email, and profile fields: id_number, address, city, unit)
+    # is already saved in the database from the registration process
     user = access_request.user
-    
-    # Ensure profile exists (it should already exist from registration)
-    try:
-        profile = user.profile
-    except Profile.DoesNotExist:
-        # If profile doesn't exist for some reason, create it with default values
-        # This should not happen, but we handle it as a safety measure
-        profile = Profile.objects.create(
-            user=user,
-            role='user',
-        )
-    
-    # All registration data is already saved in the database from registration:
-    # - User fields: first_name, last_name, phone, email (saved during registration)
-    # - Profile fields: id_number, address, city, unit (saved during registration)
-    # These are preserved and will be visible in the user's profile page after approval
+    profile, created = Profile.objects.get_or_create(user=user)
     
     # Admin can optionally update role and unit during approval
     # If not provided, the registration data is preserved
@@ -425,7 +415,7 @@ def approve_access_request_view(request, request_id):
             profile.unit = None
     
     # Admin can optionally update profile details during approval
-    # If not provided, the registration data from registration form is preserved
+    # If not provided, the registration data is preserved
     if 'id_number' in request.data:
         profile.id_number = request.data['id_number']
     if 'address' in request.data:
@@ -442,7 +432,7 @@ def approve_access_request_view(request, request_id):
             profile.city = None
     
     # Admin can optionally update user fields during approval
-    # If not provided, the registration data from registration form is preserved
+    # If not provided, the registration data is preserved
     if 'first_name' in request.data:
         user.first_name = request.data['first_name']
     if 'last_name' in request.data:
@@ -452,12 +442,8 @@ def approve_access_request_view(request, request_id):
     if 'email' in request.data:
         user.email = request.data['email']
     
-    # Save all changes to ensure registration data is preserved
     user.save()
     profile.save()
-    
-    # Approve the request (this sets user.is_approved=True and saves the access request)
-    access_request.approve(request.user)
     
     # Send approval notification
     send_approval_notification(access_request.user)
@@ -691,17 +677,10 @@ def send_alert_view(request):
             )
             recipients.extend([p.user.email for p in manager_profiles if p.user.email])
     else:
-        # Send to all users/managers (admin/system_manager only)
-        # Check if user is admin, system_manager, or staff
-        is_admin = request.user.is_staff or request.user.is_superuser
-        is_system_manager = False
-        if hasattr(request.user, 'profile') and request.user.profile:
-            is_system_manager = request.user.profile.role == 'system_manager'
-        
-        if not (is_admin or is_system_manager):
-            user_role = request.user.profile.role if hasattr(request.user, 'profile') and request.user.profile else 'לא מוגדר'
+        # Send to all users/managers (admin only)
+        if not request.user.is_staff:
             return Response({
-                'error': f'רק מנהל מערכת (system_manager) או מנהל יחידה (admin) יכולים לשלוח התראות לכל המשתמשים. התפקיד הנוכחי: {user_role}'
+                'error': 'Only admins can send alerts to all users.'
             }, status=status.HTTP_403_FORBIDDEN)
         
         if 'all' in send_to or 'users' in send_to:
@@ -737,7 +716,6 @@ def send_alert_view(request):
                     'subject': subject,
                     'message': message,
                     'home_link': home_link,
-                    'personalized_link': home_link,  # For template compatibility
                 })
                 plain_message = f"{message}\n\nקישור לעמוד הבית: {home_link}"
             except:
@@ -896,36 +874,6 @@ class ProfileViewSet(viewsets.ModelViewSet):
             user.email = user_data['email']
         user.save()
         
-        # Update profile fields - unit, city, and address need special handling
-        profile_data = self.request.data
-        
-        # Update unit (handles hierarchical selection: team > section > branch > unit)
-        if 'unit' in profile_data:
-            unit_id = profile_data['unit']
-            if unit_id:
-                try:
-                    profile.unit = Unit.objects.get(id=unit_id)
-                except Unit.DoesNotExist:
-                    pass  # Invalid unit_id, keep existing
-            else:
-                profile.unit = None
-        
-        # Update city
-        if 'city' in profile_data:
-            city_id = profile_data['city']
-            if city_id:
-                try:
-                    profile.city = Location.objects.get(id=city_id)
-                except Location.DoesNotExist:
-                    pass  # Invalid city_id, keep existing
-            else:
-                profile.city = None
-        
-        # Update address explicitly to ensure it's saved
-        if 'address' in profile_data:
-            profile.address = profile_data['address'] or ''
-        
-        # Save profile with serializer (handles other fields like id_number, contact_name, contact_phone)
         serializer.save()
 
 
@@ -934,31 +882,6 @@ class UnitViewSet(viewsets.ModelViewSet):
     queryset = Unit.objects.prefetch_related('children', 'members').all()
     serializer_class = UnitSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # Disable pagination to return all units
-    
-    def get_queryset(self):
-        """Filter units by parent_id if provided"""
-        queryset = super().get_queryset()
-        parent_id = self.request.query_params.get('parent_id', None)
-        unit_type = self.request.query_params.get('unit_type', None)
-        
-        if parent_id:
-            queryset = queryset.filter(parent_id=parent_id)
-        elif parent_id == '':  # Empty string means get root units (no parent)
-            queryset = queryset.filter(parent__isnull=True)
-        
-        if unit_type:
-            queryset = queryset.filter(unit_type=unit_type)
-        
-        return queryset
-    
-    def perform_destroy(self, instance):
-        """Delete unit and all its descendants recursively.
-        Django's CASCADE will automatically delete all children.
-        This override ensures proper deletion order and can be extended for additional logic."""
-        # Django's CASCADE will handle deletion of all children automatically
-        # We just need to delete the unit itself
-        instance.delete()
     
     @action(detail=True, methods=['get'])
     def members(self, request, pk=None):
@@ -967,31 +890,6 @@ class UnitViewSet(viewsets.ModelViewSet):
         members = Profile.objects.filter(unit=unit).select_related('user')
         serializer = ProfileSerializer(members, many=True)
         return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'], url_path='by-parent', permission_classes=[AllowAny])
-    def by_parent(self, request):
-        """Get units by parent_id - AllowAny for registration form"""
-        parent_id = request.query_params.get('parent_id', None)
-        unit_type = request.query_params.get('unit_type', None)
-        
-        # Handle empty string as None (for root units)
-        if parent_id == '':
-            parent_id = None
-        
-        if parent_id:
-            queryset = Unit.objects.filter(parent_id=parent_id)
-        else:
-            # Get root units (no parent)
-            queryset = Unit.objects.filter(parent__isnull=True)
-        
-        if unit_type:
-            queryset = queryset.filter(unit_type=unit_type)
-        
-        # Order by name_he or name
-        queryset = queryset.order_by('name_he', 'name')
-        
-        serializer = UnitSerializer(queryset, many=True)
-        return Response(serializer.data)
 
 
 class LocationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -999,11 +897,10 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
     permission_classes = [AllowAny]  # Anyone can view locations
-    pagination_class = None  # Disable pagination for locations
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        # Only apply filters if they exist (for better performance when no filters)
+        # Optional filtering by type
         location_type = self.request.query_params.get('type', None)
         if location_type:
             queryset = queryset.filter(location_type=location_type)
@@ -1012,8 +909,6 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
         if search:
             queryset = queryset.filter(Q(name__icontains=search) | Q(name_he__icontains=search))
         # Order by Hebrew name for better user experience
-        # Use only() to limit fields if needed for better performance
-        # Note: Removing only() to ensure all fields are available
         return queryset.order_by('name_he', 'name')
 
 

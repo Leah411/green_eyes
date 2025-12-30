@@ -109,6 +109,12 @@ export default function ReservesManagement() {
           <h1 className="text-2xl font-bold text-green-600">ניהול מילואים</h1>
           <div className="flex gap-2">
             <button
+              onClick={() => router.push('/dashboard/manager')}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            >
+              חזרה
+            </button>
+            <button
               onClick={() => setShowAddForm(true)}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
             >
