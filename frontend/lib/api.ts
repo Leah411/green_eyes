@@ -169,7 +169,7 @@ class ApiClient {
   }
 
   // Units
-  async listUnits(params?: { parent_id?: number | null; unit_type?: string; id?: number }) {
+  async listUnits(params?: { parent_id?: number | null; unit_type?: string; id?: number; page?: number; page_size?: number }) {
     return this.client.get('/units/', { params });
   }
 
