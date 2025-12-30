@@ -39,7 +39,7 @@ class UnitSerializer(serializers.ModelSerializer):
         model = Unit
         fields = [
             'id', 'name', 'name_he', 'parent', 'parent_name',
-            'unit_type', 'code', 'created_at', 'updated_at', 'children_count'
+            'unit_type', 'code', 'order_number', 'created_at', 'updated_at', 'children_count'
         ]
         read_only_fields = ['created_at', 'updated_at']
     
