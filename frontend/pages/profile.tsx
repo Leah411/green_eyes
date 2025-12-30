@@ -13,11 +13,18 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [units, setUnits] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isManager, setIsManager] = useState(false);
   const [showSidebar, setShowSidebar] = useState<boolean>(true);
+  const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -43,21 +50,28 @@ export default function ProfilePage() {
 
   const loadData = async () => {
     try {
-      const [profileRes, unitsRes, locationsRes] = await Promise.all([
+      const [profileRes, locationsRes] = await Promise.all([
         api.getProfile(),
-        api.listUnits(),
         api.listLocations(),
       ]);
       
       const userData = profileRes.data;
       setUser(userData);
       setProfile(userData.profile);
-      setUnits(unitsRes.data.results || unitsRes.data || []);
       setLocations(locationsRes.data.results || locationsRes.data || []);
       
       // Check if user is manager
       const userRole = userData.profile?.role || '';
       setIsManager(['system_manager', 'unit_manager', 'branch_manager', 'section_manager', 'team_manager', 'admin'].includes(userRole));
+      
+      // Load units (only root units - type 'unit')
+      await loadUnits();
+      
+      // If user has a unit, determine the hierarchy
+      const currentUnitId = userData.profile?.unit;
+      if (currentUnitId) {
+        await determineUnitHierarchy(currentUnitId);
+      }
       
       // Populate form
       setFormData({
@@ -66,7 +80,7 @@ export default function ProfilePage() {
         email: userData.email || '',
         phone: userData.phone || '',
         id_number: userData.profile?.id_number || '',
-        unit_id: userData.profile?.unit || null,
+        unit_id: currentUnitId || null,
         role: userData.profile?.role || 'user',
         address: userData.profile?.address || '',
         city_id: userData.profile?.city || null,
@@ -78,6 +92,168 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadUnits = async () => {
+    try {
+      const response = await api.getUnitsByParent(null, 'unit');
+      const unitsData = response.data.results || response.data || [];
+      setUnits(Array.isArray(unitsData) ? unitsData : []);
+    } catch (err) {
+      console.error('Failed to load units:', err);
+      setUnits([]);
+    }
+  };
+
+  const loadBranches = async (unitId: number) => {
+    try {
+      const response = await api.getUnitsByParent(unitId, 'branch');
+      const branchesData = response.data.results || response.data || [];
+      setBranches(Array.isArray(branchesData) ? branchesData : []);
+    } catch (err) {
+      console.error('Failed to load branches:', err);
+      setBranches([]);
+    }
+  };
+
+  const loadSections = async (branchId: number) => {
+    try {
+      const response = await api.getUnitsByParent(branchId, 'section');
+      const sectionsData = response.data.results || response.data || [];
+      setSections(Array.isArray(sectionsData) ? sectionsData : []);
+    } catch (err) {
+      console.error('Failed to load sections:', err);
+      setSections([]);
+    }
+  };
+
+  const loadTeams = async (sectionId: number) => {
+    try {
+      const response = await api.getUnitsByParent(sectionId, 'team');
+      const teamsData = response.data.results || response.data || [];
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
+    } catch (err) {
+      console.error('Failed to load teams:', err);
+      setTeams([]);
+    }
+  };
+
+  const determineUnitHierarchy = async (unitId: number) => {
+    try {
+      const unitResponse = await api.getUnit(unitId);
+      const unit = unitResponse.data;
+      
+      if (!unit) return;
+      
+      const parentId = typeof unit.parent === 'object' ? unit.parent?.id : (unit.parent || null);
+      
+      // Determine the hierarchy by checking unit_type and parent
+      if (unit.unit_type === 'team') {
+        setSelectedTeamId(unitId);
+        if (parentId) {
+          await determineSectionHierarchy(parentId);
+        }
+      } else if (unit.unit_type === 'section') {
+        setSelectedSectionId(unitId);
+        await loadTeams(unitId);
+        if (parentId) {
+          await determineBranchHierarchy(parentId);
+        }
+      } else if (unit.unit_type === 'branch') {
+        setSelectedBranchId(unitId);
+        await loadSections(unitId);
+        if (parentId) {
+          setSelectedUnitId(parentId);
+          await loadBranches(parentId);
+        }
+      } else if (unit.unit_type === 'unit') {
+        setSelectedUnitId(unitId);
+        await loadBranches(unitId);
+      }
+    } catch (err) {
+      console.error('Failed to determine unit hierarchy:', err);
+    }
+  };
+
+  const determineSectionHierarchy = async (sectionId: number) => {
+    try {
+      const sectionResponse = await api.getUnit(sectionId);
+      const section = sectionResponse.data;
+      if (!section) return;
+      
+      setSelectedSectionId(sectionId);
+      await loadTeams(sectionId);
+      
+      const parentId = typeof section.parent === 'object' ? section.parent?.id : (section.parent || null);
+      if (parentId) {
+        await determineBranchHierarchy(parentId);
+      }
+    } catch (err) {
+      console.error('Failed to determine section hierarchy:', err);
+    }
+  };
+
+  const determineBranchHierarchy = async (branchId: number) => {
+    try {
+      const branchResponse = await api.getUnit(branchId);
+      const branch = branchResponse.data;
+      if (!branch) return;
+      
+      setSelectedBranchId(branchId);
+      await loadSections(branchId);
+      
+      const parentId = typeof branch.parent === 'object' ? branch.parent?.id : (branch.parent || null);
+      if (parentId) {
+        setSelectedUnitId(parentId);
+        await loadBranches(parentId);
+      }
+    } catch (err) {
+      console.error('Failed to determine branch hierarchy:', err);
+    }
+  };
+
+  const handleUnitChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const unitId = e.target.value ? Number(e.target.value) : null;
+    setSelectedUnitId(unitId);
+    setSelectedBranchId(null);
+    setSelectedSectionId(null);
+    setSelectedTeamId(null);
+    setBranches([]);
+    setSections([]);
+    setTeams([]);
+    
+    if (unitId) {
+      await loadBranches(unitId);
+    }
+  };
+
+  const handleBranchChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const branchId = e.target.value ? Number(e.target.value) : null;
+    setSelectedBranchId(branchId);
+    setSelectedSectionId(null);
+    setSelectedTeamId(null);
+    setSections([]);
+    setTeams([]);
+    
+    if (branchId) {
+      await loadSections(branchId);
+    }
+  };
+
+  const handleSectionChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const sectionId = e.target.value ? Number(e.target.value) : null;
+    setSelectedSectionId(sectionId);
+    setSelectedTeamId(null);
+    setTeams([]);
+    
+    if (sectionId) {
+      await loadTeams(sectionId);
+    }
+  };
+
+  const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const teamId = e.target.value ? Number(e.target.value) : null;
+    setSelectedTeamId(teamId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,11 +271,14 @@ export default function ProfilePage() {
     }
 
     try {
+      // Determine the final unit ID (most specific selection)
+      const finalUnitId = selectedTeamId || selectedSectionId || selectedBranchId || selectedUnitId;
+      
       // Update profile if exists
       if (profile && profile.id) {
         const profileUpdateData: any = {
           id_number: formData.id_number,
-          unit: formData.unit_id,
+          unit: finalUnitId,
           address: formData.address,
           city: formData.city_id,
           // Include user fields in profile update
@@ -251,22 +430,86 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div>
-            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-              יחידה
-            </label>
-            <select
-              value={formData.unit_id || ''}
-              onChange={(e) => setFormData({ ...formData, unit_id: e.target.value ? Number(e.target.value) : null })}
-              className="w-full px-4 py-2 border rounded-lg text-right"
-            >
-              <option value="">-- בחר יחידה --</option>
-              {units.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name_he || unit.name}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold mb-4 text-right">מבנה ארגוני</h3>
+            
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                יחידה
+              </label>
+              <select
+                value={selectedUnitId || ''}
+                onChange={handleUnitChange}
+                className="w-full px-4 py-2 border rounded-lg text-right"
+              >
+                <option value="">-- בחר יחידה --</option>
+                {units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name_he || unit.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedUnitId && (
+              <div>
+                <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                  ענף
+                </label>
+                <select
+                  value={selectedBranchId || ''}
+                  onChange={handleBranchChange}
+                  className="w-full px-4 py-2 border rounded-lg text-right"
+                >
+                  <option value="">-- בחר ענף --</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name_he || branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {selectedBranchId && (
+              <div>
+                <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                  מדור
+                </label>
+                <select
+                  value={selectedSectionId || ''}
+                  onChange={handleSectionChange}
+                  className="w-full px-4 py-2 border rounded-lg text-right"
+                >
+                  <option value="">-- בחר מדור --</option>
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name_he || section.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {selectedSectionId && (
+              <div>
+                <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                  צוות
+                </label>
+                <select
+                  value={selectedTeamId || ''}
+                  onChange={handleTeamChange}
+                  className="w-full px-4 py-2 border rounded-lg text-right"
+                >
+                  <option value="">-- בחר צוות --</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name_he || team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div>

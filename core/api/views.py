@@ -890,6 +890,40 @@ class UnitViewSet(viewsets.ModelViewSet):
         members = Profile.objects.filter(unit=unit).select_related('user')
         serializer = ProfileSerializer(members, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='by-parent')
+    def by_parent(self, request):
+        """Get units by parent ID and/or unit type"""
+        parent_id = request.query_params.get('parent_id', None)
+        unit_type = request.query_params.get('unit_type', None)
+        
+        queryset = Unit.objects.all()
+        
+        # Filter by parent
+        if parent_id == '' or parent_id is None:
+            # Get root units (no parent)
+            queryset = queryset.filter(parent__isnull=True)
+        elif parent_id:
+            try:
+                parent_id_int = int(parent_id)
+                queryset = queryset.filter(parent_id=parent_id_int)
+            except ValueError:
+                return Response({
+                    'error': 'Invalid parent_id parameter'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Filter by unit type
+        if unit_type:
+            queryset = queryset.filter(unit_type=unit_type)
+        
+        # Order by order_number and name
+        queryset = queryset.order_by('order_number', 'name')
+        
+        serializer = UnitSerializer(queryset, many=True)
+        return Response({
+            'count': len(serializer.data),
+            'results': serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 class LocationViewSet(viewsets.ReadOnlyModelViewSet):
