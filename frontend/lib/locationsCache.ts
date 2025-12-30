@@ -21,14 +21,16 @@ export const getLocations = async (api: any): Promise<any[]> => {
       console.log('locationsCache: listLocations method:', typeof api.listLocations);
       
       // Call API directly with error handling and timeout
+      // Request large page size to get all locations in one request
       let response;
       try {
-        console.log('locationsCache: Calling api.listLocations()...');
+        console.log('locationsCache: Calling api.listLocations() with large page_size (10000)...');
         
-        // Add timeout wrapper
-        const apiCall = api.listLocations();
+        // Request a very large page size to get all locations in one request
+        // The API now supports page_size up to 10000
+        const apiCall = api.listLocations({ page_size: 10000 });
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout after 15 seconds')), 15000)
+          setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
         );
         
         response = await Promise.race([apiCall, timeout]) as any;
@@ -50,18 +52,72 @@ export const getLocations = async (api: any): Promise<any[]> => {
         isArray: Array.isArray(data), 
         hasResults: !!data.results,
         resultsLength: data.results?.length || 0,
+        hasNext: !!data.next,
+        count: data.count,
         dataKeys: Object.keys(data || {}),
         dataType: typeof data
       });
       
       let allLocations: any[] = [];
       
-      if (Array.isArray(data)) {
+      // Handle paginated response
+      if (data && data.results && Array.isArray(data.results)) {
+        allLocations = [...data.results];
+        const totalCount = data.count || allLocations.length;
+        console.log('locationsCache: Data has results array, initial length:', allLocations.length, 'total count:', totalCount);
+        
+        // With page_size=10000, we should get all locations in one request
+        // But if pagination still exists, load remaining pages
+        let nextUrl = data.next;
+        let page = 2;
+        const maxPages = 5; // Safety limit (shouldn't need more with page_size=10000)
+        let pagesLoaded = 1;
+        
+        // Only load more pages if we didn't get all locations
+        if (nextUrl && allLocations.length < totalCount) {
+          console.log(`locationsCache: Still need more locations (have ${allLocations.length} of ${totalCount}), loading additional pages...`);
+          
+          while (nextUrl && allLocations.length < totalCount && pagesLoaded < maxPages) {
+            try {
+              console.log(`locationsCache: Loading page ${page}... (have ${allLocations.length} of ${totalCount})`);
+              const nextResponse = await api.listLocations({ page, page_size: 10000 });
+              const nextData = nextResponse.data;
+              
+              if (nextData.results && Array.isArray(nextData.results) && nextData.results.length > 0) {
+                allLocations = [...allLocations, ...nextData.results];
+                nextUrl = nextData.next;
+                page++;
+                pagesLoaded++;
+                console.log(`locationsCache: Page ${page - 1} loaded, now have ${allLocations.length} locations`);
+                
+                // If we got all locations, stop
+                if (allLocations.length >= totalCount) {
+                  console.log('locationsCache: Got all locations, stopping pagination');
+                  break;
+                }
+              } else {
+                console.log('locationsCache: No more results, stopping pagination');
+                nextUrl = null;
+              }
+            } catch (pageError: any) {
+              console.error(`locationsCache: Error loading page ${page}:`, pageError);
+              // Continue with what we have instead of stopping completely
+              nextUrl = null;
+            }
+          }
+        }
+        
+        console.log('locationsCache: Total locations loaded:', allLocations.length, 'expected:', totalCount);
+        
+        if (allLocations.length < totalCount) {
+          console.warn(`locationsCache: Warning - Only loaded ${allLocations.length} out of ${totalCount} locations`);
+        } else {
+          console.log('locationsCache: Successfully loaded all locations in', pagesLoaded, 'page(s)');
+        }
+      } else if (Array.isArray(data)) {
+        // Non-paginated response (array)
         allLocations = data;
         console.log('locationsCache: Data is array, length:', allLocations.length);
-      } else if (data && data.results && Array.isArray(data.results)) {
-        allLocations = data.results;
-        console.log('locationsCache: Data has results array, length:', allLocations.length);
       } else {
         console.warn('locationsCache: Unexpected data format:', data);
       }

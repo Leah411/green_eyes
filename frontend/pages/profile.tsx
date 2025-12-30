@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import Cookies from 'js-cookie';
 import Sidebar from '../components/Sidebar';
+import SearchableLocationSelect from '../components/SearchableLocationSelect';
 
 export default function ProfilePage() {
   const { t } = useTranslation();
@@ -16,7 +17,6 @@ export default function ProfilePage() {
   const [branches, setBranches] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
-  const [locations, setLocations] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isManager, setIsManager] = useState(false);
@@ -50,15 +50,11 @@ export default function ProfilePage() {
 
   const loadData = async () => {
     try {
-      const [profileRes, locationsRes] = await Promise.all([
-        api.getProfile(),
-        api.listLocations(),
-      ]);
+      const profileRes = await api.getProfile();
       
       const userData = profileRes.data;
       setUser(userData);
       setProfile(userData.profile);
-      setLocations(locationsRes.data.results || locationsRes.data || []);
       
       // Check if user is manager
       const userRole = userData.profile?.role || '';
@@ -529,18 +525,12 @@ export default function ProfilePage() {
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">
               עיר מגורים
             </label>
-            <select
-              value={formData.city_id || ''}
-              onChange={(e) => setFormData({ ...formData, city_id: e.target.value ? Number(e.target.value) : null })}
-              className="w-full px-4 py-2 border rounded-lg text-right"
-            >
-              <option value="">-- בחר עיר --</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name_he || location.name}
-                </option>
-              ))}
-            </select>
+            <SearchableLocationSelect
+              value={formData.city_id}
+              onChange={(locationId) => setFormData({ ...formData, city_id: locationId })}
+              placeholder="-- בחר עיר -- (הקלד כדי לחפש)"
+              className="w-full"
+            />
           </div>
 
           {/* Reserves Section */}

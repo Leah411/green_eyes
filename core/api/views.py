@@ -2,6 +2,7 @@ from rest_framework import status, viewsets, permissions
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.utils import timezone
@@ -926,11 +927,19 @@ class UnitViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_200_OK)
 
 
+class LocationPagination(PageNumberPagination):
+    """Custom pagination for locations - allows large page sizes"""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 10000  # Allow up to 10,000 locations per page
+
+
 class LocationViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for Location model (cities, towns, kibbutzim)"""
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
     permission_classes = [AllowAny]  # Anyone can view locations
+    pagination_class = LocationPagination  # Use custom pagination
     
     def get_queryset(self):
         queryset = super().get_queryset()
