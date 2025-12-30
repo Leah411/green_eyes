@@ -270,7 +270,7 @@ export default function PermissionsDashboard() {
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-right">רשימת המשתמשים הקיימים במערכת</h2>
+              <h2 className="text-xl font-semibold text-right">רשימת המשתמשים הקיימים במערכת</h2>
                 <div className="w-64">
                   <input
                     type="text"
@@ -310,25 +310,25 @@ export default function PermissionsDashboard() {
 
                 if (filteredUsers.length === 0) {
                   return (
-                    <div className="p-6 text-center text-gray-500">
+                <div className="p-6 text-center text-gray-500">
                       {searchQuery ? 'לא נמצאו משתמשים התואמים לחיפוש' : 'אין משתמשים במערכת'}
-                    </div>
+                </div>
                   );
                 }
 
                 return (
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תעודת זהות</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">אימייל</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תפקיד</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">יחידה</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">אימייל</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תפקיד</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">יחידה</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
                       {filteredUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-right">{user.profile?.id_number || '-'}</td>
@@ -360,9 +360,9 @@ export default function PermissionsDashboard() {
                           </div>
                         </td>
                       </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                    ))}
+                  </tbody>
+                </table>
                 );
               })()}
             </div>

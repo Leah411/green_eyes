@@ -428,23 +428,23 @@ export default function ProfilePage() {
 
           <div className="space-y-4">
             <h3 className="text-lg font-semibold mb-4 text-right">מבנה ארגוני</h3>
-            
-            <div>
-              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                יחידה
-              </label>
-              <select
+
+          <div>
+            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+              יחידה
+            </label>
+            <select
                 value={selectedUnitId || ''}
                 onChange={handleUnitChange}
-                className="w-full px-4 py-2 border rounded-lg text-right"
-              >
-                <option value="">-- בחר יחידה --</option>
-                {units.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.name_he || unit.name}
-                  </option>
-                ))}
-              </select>
+              className="w-full px-4 py-2 border rounded-lg text-right"
+            >
+              <option value="">-- בחר יחידה --</option>
+              {units.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name_he || unit.name}
+                </option>
+              ))}
+            </select>
             </div>
 
             {selectedUnitId && (

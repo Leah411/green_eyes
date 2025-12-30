@@ -195,9 +195,9 @@ export default function OrganizationalStructure() {
     });
     
     const result = filtered.map(unit => ({
-      ...unit,
+        ...unit,
       children: buildTree(unitsList, unit.id),
-    }));
+      }));
     
     return result;
   };
@@ -345,16 +345,16 @@ export default function OrganizationalStructure() {
         >
           <div className="flex items-center gap-2 flex-1">
             <div className="text-gray-400 text-xl">⋮⋮</div>
-            <div>
+          <div>
               <div className="font-semibold text-lg">{unit.name_he || unit.name}</div>
               {unit.name_he && unit.name !== unit.name_he && (
                 <div className="text-sm text-gray-500">{unit.name}</div>
               )}
               <div className="text-xs text-gray-500 mt-1">
-                {unit.unit_type === 'unit' && 'יחידה'}
-                {unit.unit_type === 'branch' && 'ענף'}
-                {unit.unit_type === 'section' && 'מדור'}
-                {unit.unit_type === 'team' && 'צוות'}
+              {unit.unit_type === 'unit' && 'יחידה'}
+              {unit.unit_type === 'branch' && 'ענף'}
+              {unit.unit_type === 'section' && 'מדור'}
+              {unit.unit_type === 'team' && 'צוות'}
                 {unit.code && ` - קוד: ${unit.code}`}
                 {hasPendingChanges && ' (שינויים לא שמורים)'}
               </div>
@@ -400,16 +400,16 @@ export default function OrganizationalStructure() {
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'mr-80' : ''}`}>
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-green-600">סידור מבנה</h1>
-            <div className="flex gap-2">
-              <button
+          <div className="flex gap-2">
+            <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            >
                 {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
-              </button>
+            </button>
               <button
                 onClick={() => router.push('/home')}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
@@ -425,19 +425,19 @@ export default function OrganizationalStructure() {
                   {isSaving ? 'שומר...' : `שמור שינויים (${pendingChanges.size})`}
                 </button>
               )}
-              <button
-                onClick={() => {
-                  setEditingUnit(null);
-                  setFormData({ name: '', name_he: '', unit_type: 'unit', parent: null, code: '' });
-                  setShowAddForm(true);
-                }}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                הוסף יחידה
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setEditingUnit(null);
+                setFormData({ name: '', name_he: '', unit_type: 'unit', parent: null, code: '' });
+                setShowAddForm(true);
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              הוסף יחידה
+            </button>
           </div>
-        </header>
+        </div>
+      </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {showAddForm && (
@@ -490,10 +490,10 @@ export default function OrganizationalStructure() {
                   {units
                     .filter(unit => !editingUnit || unit.id !== editingUnit.id) // Don't allow selecting self as parent
                     .map((unit) => (
-                      <option key={unit.id} value={unit.id}>
+                    <option key={unit.id} value={unit.id}>
                         {unit.name_he || unit.name} ({unit.unit_type === 'unit' ? 'יחידה' : unit.unit_type === 'branch' ? 'ענף' : unit.unit_type === 'section' ? 'מדור' : 'צוות'})
-                      </option>
-                    ))}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

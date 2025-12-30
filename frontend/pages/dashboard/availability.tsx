@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import api from '../../lib/api';
 import Cookies from 'js-cookie';
@@ -18,6 +18,58 @@ export default function AvailabilityDashboard() {
   const [lastAlert, setLastAlert] = useState<any>(null);
   const [sendingOTP, setSendingOTP] = useState<Set<number>>(new Set());
   const [sendingOTPToAll, setSendingOTPToAll] = useState<boolean>(false);
+  
+  // Filter states with checkboxes
+  const [selectedUnits, setSelectedUnits] = useState<Set<number>>(new Set());
+  const [selectedBranches, setSelectedBranches] = useState<Set<number>>(new Set());
+  const [selectedSections, setSelectedSections] = useState<Set<number>>(new Set());
+  const [selectedTeams, setSelectedTeams] = useState<Set<number>>(new Set());
+  
+  // Status filter - removed, will use arrows in table
+  
+  // Dropdown open states
+  const [unitsDropdownOpen, setUnitsDropdownOpen] = useState(false);
+  const [branchesDropdownOpen, setBranchesDropdownOpen] = useState(false);
+  const [sectionsDropdownOpen, setSectionsDropdownOpen] = useState(false);
+  const [teamsDropdownOpen, setTeamsDropdownOpen] = useState(false);
+  
+  // Hierarchical data
+  const [allUnits, setAllUnits] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  
+  // Status filter state (for arrows in table)
+  const [statusFilter, setStatusFilter] = useState<string | null>(null); // null = all, 'red' = not filled, 'green' = filled
+  
+  // Refs for dropdowns
+  const unitsDropdownRef = useRef<HTMLDivElement>(null);
+  const branchesDropdownRef = useRef<HTMLDivElement>(null);
+  const sectionsDropdownRef = useRef<HTMLDivElement>(null);
+  const teamsDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (unitsDropdownRef.current && !unitsDropdownRef.current.contains(event.target as Node)) {
+        setUnitsDropdownOpen(false);
+      }
+      if (branchesDropdownRef.current && !branchesDropdownRef.current.contains(event.target as Node)) {
+        setBranchesDropdownOpen(false);
+      }
+      if (sectionsDropdownRef.current && !sectionsDropdownRef.current.contains(event.target as Node)) {
+        setSectionsDropdownOpen(false);
+      }
+      if (teamsDropdownRef.current && !teamsDropdownRef.current.contains(event.target as Node)) {
+        setTeamsDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const token = Cookies.get('access_token');
@@ -25,7 +77,7 @@ export default function AvailabilityDashboard() {
       router.push('/');
       return;
     }
-    loadUnits();
+    loadAllUnits();
   }, [router]);
 
   useEffect(() => {
@@ -35,15 +87,71 @@ export default function AvailabilityDashboard() {
       return;
     }
     loadData();
-  }, [selectedUnit]);
+  }, [selectedUnit, selectedUnits, selectedBranches, selectedSections, selectedTeams]);
 
-  const loadUnits = async () => {
+  const loadAllUnits = async () => {
     try {
-      const response = await api.listUnits();
-      const unitsData = response.data.results || response.data || [];
-      setUnits(unitsData);
+      // Load all units with pagination
+      let allUnitsData: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await api.listUnits({ page, page_size: 1000 });
+        const data = response.data.results || response.data || [];
+        allUnitsData = [...allUnitsData, ...data];
+        
+        if (response.data.next && data.length > 0) {
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      setAllUnits(allUnitsData);
+      setUnits(allUnitsData);
+      
+      // Organize by type
+      const unitsList = allUnitsData.filter(u => u.unit_type === 'unit');
+      const branchesList = allUnitsData.filter(u => u.unit_type === 'branch');
+      const sectionsList = allUnitsData.filter(u => u.unit_type === 'section');
+      const teamsList = allUnitsData.filter(u => u.unit_type === 'team');
+      
+      setBranches(branchesList);
+      setSections(sectionsList);
+      setTeams(teamsList);
     } catch (err) {
       console.error('Failed to load units:', err);
+    }
+  };
+  
+  const loadBranchesForUnit = async (unitId: number) => {
+    try {
+      const response = await api.getUnitsByParent(unitId, 'branch');
+      return response.data.results || response.data || [];
+    } catch (err) {
+      console.error('Failed to load branches:', err);
+      return [];
+    }
+  };
+  
+  const loadSectionsForBranch = async (branchId: number) => {
+    try {
+      const response = await api.getUnitsByParent(branchId, 'section');
+      return response.data.results || response.data || [];
+    } catch (err) {
+      console.error('Failed to load sections:', err);
+      return [];
+    }
+  };
+  
+  const loadTeamsForSection = async (sectionId: number) => {
+    try {
+      const response = await api.getUnitsByParent(sectionId, 'team');
+      return response.data.results || response.data || [];
+    } catch (err) {
+      console.error('Failed to load teams:', err);
+      return [];
     }
   };
 
@@ -59,8 +167,19 @@ export default function AvailabilityDashboard() {
       const usersRes = await api.listApprovedUsers();
       const allUsers = usersRes.data.results || usersRes.data || [];
       
+      // Build filter for reports based on selected units
+      const selectedUnitIds = [
+        ...Array.from(selectedUnits),
+        ...Array.from(selectedBranches),
+        ...Array.from(selectedSections),
+        ...Array.from(selectedTeams)
+      ];
+      
+      // Use old selectedUnit for backward compatibility, or new filter
+      const unitFilter = selectedUnit || (selectedUnitIds.length > 0 ? selectedUnitIds[0].toString() : '');
+      
       // Load reports to show availability status (filtered by selected unit, backend handles descendants)
-      const reportsRes = await api.listReports(selectedUnit ? { unit: selectedUnit } : {});
+      const reportsRes = await api.listReports(unitFilter ? { unit: unitFilter } : {});
       const reports = reportsRes.data.results || reportsRes.data || [];
       
       // Create a map of user IDs to their latest report date
@@ -72,13 +191,35 @@ export default function AvailabilityDashboard() {
         }
       });
       
-      // Show all users the manager can see
-      // Report status will be based on reports filtered by selected unit (if any)
-      // Users with reports in the filtered scope will show 'green', others will show 'red'
-      const usersToShow = allUsers;
+      // Filter users by selected units/branches/sections/teams
+      let usersToShow = allUsers;
+      
+      if (selectedUnitIds.length > 0) {
+        // Build a set of all relevant unit IDs (selected + all descendants)
+        const relevantUnitIds = new Set<number>(selectedUnitIds);
+        
+        // Add all descendants of selected units
+        const addDescendants = (unitId: number) => {
+          const children = allUnits.filter(u => u.parent === unitId);
+          children.forEach(child => {
+            relevantUnitIds.add(child.id);
+            addDescendants(child.id); // Recursively add descendants
+          });
+        };
+        
+        selectedUnitIds.forEach(id => addDescendants(id));
+        
+        usersToShow = allUsers.filter((user: any) => {
+          const userUnitId = user.profile?.unit;
+          if (!userUnitId) return false;
+          
+          // Check if user's unit is in the relevant units set
+          return relevantUnitIds.has(userUnitId);
+        });
+      }
       
       // Merge user data with report status
-      const usersWithStatus = usersToShow.map((user: any) => {
+      let usersWithStatus = usersToShow.map((user: any) => {
         const latestReportDate = reportsByUser.get(user.id);
         const hasFilledReport = !!latestReportDate;
         
@@ -103,6 +244,7 @@ export default function AvailabilityDashboard() {
         };
       });
       
+      // Don't filter by status here - will be done in display based on arrow clicks
       setUsers(usersWithStatus);
       setLastAlert(null); // TODO: Load last alert if available
     } catch (err) {
@@ -301,10 +443,163 @@ export default function AvailabilityDashboard() {
     }
   };
 
-  // Filter units by type for dropdown
-  const branches = units.filter(u => u.unit_type === 'branch');
-  const sections = units.filter(u => u.unit_type === 'section');
-  const teams = units.filter(u => u.unit_type === 'team');
+  // Helper functions for checkbox handling
+  const toggleUnit = (unitId: number) => {
+    setSelectedUnits(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(unitId)) {
+        newSet.delete(unitId);
+      } else {
+        newSet.add(unitId);
+      }
+      return newSet;
+    });
+  };
+  
+  const toggleBranch = (branchId: number) => {
+    setSelectedBranches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(branchId)) {
+        newSet.delete(branchId);
+      } else {
+        newSet.add(branchId);
+      }
+      return newSet;
+    });
+  };
+  
+  const toggleSection = (sectionId: number) => {
+    setSelectedSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sectionId)) {
+        newSet.delete(sectionId);
+      } else {
+        newSet.add(sectionId);
+      }
+      return newSet;
+    });
+  };
+  
+  const toggleTeam = (teamId: number) => {
+    setSelectedTeams(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(teamId)) {
+        newSet.delete(teamId);
+      } else {
+        newSet.add(teamId);
+      }
+      return newSet;
+    });
+  };
+  
+  const clearAllFilters = () => {
+    setSelectedUnits(new Set());
+    setSelectedBranches(new Set());
+    setSelectedSections(new Set());
+    setSelectedTeams(new Set());
+    setSelectedUnit('');
+  };
+  
+  // Get available options based on selections
+  // Show all options, but filter based on selections if any
+  const getAvailableBranches = () => {
+    // If units are selected, show only branches under those units
+    if (selectedUnits.size > 0) {
+      const selectedUnitsList = Array.from(selectedUnits);
+      return branches.filter(b => {
+        // Check if branch's parent is a selected unit
+        if (selectedUnitsList.includes(b.parent)) return true;
+        
+        // Check if branch's parent is a descendant of a selected unit
+        let current = allUnits.find(u => u.id === b.parent);
+        while (current && current.parent) {
+          if (selectedUnitsList.includes(current.parent)) return true;
+          current = allUnits.find(u => u.id === current.parent);
+          if (!current) break;
+        }
+        return false;
+      });
+    }
+    // Otherwise show all branches
+    return branches;
+  };
+  
+  const getAvailableSections = () => {
+    // If branches are selected, show only sections under those branches
+    if (selectedBranches.size > 0) {
+      const selectedBranchesList = Array.from(selectedBranches);
+      return sections.filter(s => {
+        if (selectedBranchesList.includes(s.parent)) return true;
+        let current = allUnits.find(u => u.id === s.parent);
+        while (current && current.parent) {
+          if (selectedBranchesList.includes(current.parent)) return true;
+          current = allUnits.find(u => u.id === current.parent);
+          if (!current) break;
+        }
+        return false;
+      });
+    }
+    // If units are selected (but not branches), show sections under those units
+    if (selectedUnits.size > 0) {
+      const selectedUnitsList = Array.from(selectedUnits);
+      return sections.filter(s => {
+        let current = allUnits.find(u => u.id === s.parent);
+        while (current && current.parent) {
+          if (selectedUnitsList.includes(current.parent)) return true;
+          current = allUnits.find(u => u.id === current.parent);
+          if (!current) break;
+        }
+        return false;
+      });
+    }
+    // Otherwise show all sections
+    return sections;
+  };
+  
+  const getAvailableTeams = () => {
+    // If sections are selected, show only teams under those sections
+    if (selectedSections.size > 0) {
+      const selectedSectionsList = Array.from(selectedSections);
+      return teams.filter(t => {
+        if (selectedSectionsList.includes(t.parent)) return true;
+        let current = allUnits.find(u => u.id === t.parent);
+        while (current && current.parent) {
+          if (selectedSectionsList.includes(current.parent)) return true;
+          current = allUnits.find(u => u.id === current.parent);
+          if (!current) break;
+        }
+        return false;
+      });
+    }
+    // If branches are selected (but not sections), show teams under those branches
+    if (selectedBranches.size > 0) {
+      const selectedBranchesList = Array.from(selectedBranches);
+      return teams.filter(t => {
+        let current = allUnits.find(u => u.id === t.parent);
+        while (current && current.parent) {
+          if (selectedBranchesList.includes(current.parent)) return true;
+          current = allUnits.find(u => u.id === current.parent);
+          if (!current) break;
+        }
+        return false;
+      });
+    }
+    // If units are selected (but not branches/sections), show teams under those units
+    if (selectedUnits.size > 0) {
+      const selectedUnitsList = Array.from(selectedUnits);
+      return teams.filter(t => {
+        let current = allUnits.find(u => u.id === t.parent);
+        while (current && current.parent) {
+          if (selectedUnitsList.includes(current.parent)) return true;
+          current = allUnits.find(u => u.id === current.parent);
+          if (!current) break;
+        }
+        return false;
+      });
+    }
+    // Otherwise show all teams
+    return teams;
+  };
 
   if (loading) {
     return <div className="p-8 text-center" dir="rtl">טוען...</div>;
@@ -333,13 +628,6 @@ export default function AvailabilityDashboard() {
                   >
                     {sendingAlert ? 'שולח...' : 'שלח התרעה'}
                   </button>
-                  <button
-                    onClick={handleSendOTPToAll}
-                    disabled={sendingOTPToAll}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {sendingOTPToAll ? 'שולח OTP...' : 'שלח OTP ללא מילאו דוח'}
-                  </button>
                 </>
               )}
               <button
@@ -348,12 +636,6 @@ export default function AvailabilityDashboard() {
               >
                 ייצוא לאקסל
               </button>
-              <button
-                onClick={() => router.push('/dashboard/manager')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
-                חזור לדשבורד
-              </button>
             </div>
           </div>
         </header>
@@ -361,50 +643,166 @@ export default function AvailabilityDashboard() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Filters */}
         <div className="bg-white rounded-lg shadow mb-6 p-4">
-          <div className="flex gap-4 items-center flex-wrap">
-            <label className="text-sm font-medium text-gray-700">סינון לפי יחידה:</label>
-            <select
-              value={selectedUnit}
-              onChange={(e) => setSelectedUnit(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            >
-              <option value="">כל היחידות</option>
-              {branches.length > 0 && (
-                <optgroup label="ענפים">
-                  {branches.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name_he || unit.name}
-                    </option>
-                  ))}
-                </optgroup>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-700 mb-3">סינון לפי מבנה ארגוני</h3>
+            <div className="flex gap-4 items-start flex-wrap">
+              {/* Units Dropdown */}
+              <div className="relative" ref={unitsDropdownRef}>
+                <button
+                  onClick={() => {
+                    setUnitsDropdownOpen(!unitsDropdownOpen);
+                    setBranchesDropdownOpen(false);
+                    setSectionsDropdownOpen(false);
+                    setTeamsDropdownOpen(false);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[200px] text-right flex items-center justify-between"
+                >
+                  <span>יחידות {selectedUnits.size > 0 && `(${selectedUnits.size})`}</span>
+                  <span className="mr-2">▼</span>
+                </button>
+                {unitsDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                    <div className="p-2">
+                      {allUnits.filter(u => u.unit_type === 'unit').map((unit) => (
+                        <label key={unit.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedUnits.has(unit.id)}
+                            onChange={() => toggleUnit(unit.id)}
+                            className="ml-2"
+                          />
+                          <span className="text-sm">{unit.name_he || unit.name}</span>
+                        </label>
+                      ))}
+                      {allUnits.filter(u => u.unit_type === 'unit').length === 0 && (
+                        <div className="p-2 text-sm text-gray-500">אין יחידות זמינות</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Branches Dropdown */}
+              <div className="relative" ref={branchesDropdownRef}>
+                <button
+                  onClick={() => {
+                    setBranchesDropdownOpen(!branchesDropdownOpen);
+                    setUnitsDropdownOpen(false);
+                    setSectionsDropdownOpen(false);
+                    setTeamsDropdownOpen(false);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[200px] text-right flex items-center justify-between"
+                >
+                  <span>ענפים {selectedBranches.size > 0 && `(${selectedBranches.size})`}</span>
+                  <span className="mr-2">▼</span>
+                </button>
+                {branchesDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                    <div className="p-2">
+                      {getAvailableBranches().map((branch) => (
+                        <label key={branch.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedBranches.has(branch.id)}
+                            onChange={() => toggleBranch(branch.id)}
+                            className="ml-2"
+                          />
+                          <span className="text-sm">{branch.name_he || branch.name}</span>
+                        </label>
+                      ))}
+                      {getAvailableBranches().length === 0 && (
+                        <div className="p-2 text-sm text-gray-500">אין ענפים זמינים</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sections Dropdown */}
+              <div className="relative" ref={sectionsDropdownRef}>
+                <button
+                  onClick={() => {
+                    setSectionsDropdownOpen(!sectionsDropdownOpen);
+                    setUnitsDropdownOpen(false);
+                    setBranchesDropdownOpen(false);
+                    setTeamsDropdownOpen(false);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[200px] text-right flex items-center justify-between"
+                >
+                  <span>מדורים {selectedSections.size > 0 && `(${selectedSections.size})`}</span>
+                  <span className="mr-2">▼</span>
+                </button>
+                {sectionsDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                    <div className="p-2">
+                      {getAvailableSections().map((section) => (
+                        <label key={section.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedSections.has(section.id)}
+                            onChange={() => toggleSection(section.id)}
+                            className="ml-2"
+                          />
+                          <span className="text-sm">{section.name_he || section.name}</span>
+                        </label>
+                      ))}
+                      {getAvailableSections().length === 0 && (
+                        <div className="p-2 text-sm text-gray-500">אין מדורים זמינים</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Teams Dropdown */}
+              <div className="relative" ref={teamsDropdownRef}>
+                <button
+                  onClick={() => {
+                    setTeamsDropdownOpen(!teamsDropdownOpen);
+                    setUnitsDropdownOpen(false);
+                    setBranchesDropdownOpen(false);
+                    setSectionsDropdownOpen(false);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[200px] text-right flex items-center justify-between"
+                >
+                  <span>צוותים {selectedTeams.size > 0 && `(${selectedTeams.size})`}</span>
+                  <span className="mr-2">▼</span>
+                </button>
+                {teamsDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                    <div className="p-2">
+                      {getAvailableTeams().map((team) => (
+                        <label key={team.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedTeams.has(team.id)}
+                            onChange={() => toggleTeam(team.id)}
+                            className="ml-2"
+                          />
+                          <span className="text-sm">{team.name_he || team.name}</span>
+                        </label>
+                      ))}
+                      {getAvailableTeams().length === 0 && (
+                        <div className="p-2 text-sm text-gray-500">אין צוותים זמינים</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Clear Filters Button */}
+              {(selectedUnits.size > 0 || selectedBranches.size > 0 || selectedSections.size > 0 || selectedTeams.size > 0 || selectedUnit || statusFilter !== null) && (
+                <button
+                  onClick={() => {
+                    clearAllFilters();
+                    setStatusFilter(null);
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                >
+                  נקה סינון
+                </button>
               )}
-              {sections.length > 0 && (
-                <optgroup label="מדורים">
-                  {sections.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name_he || unit.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {teams.length > 0 && (
-                <optgroup label="צוותים">
-                  {teams.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name_he || unit.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            {selectedUnit && (
-              <button
-                onClick={() => setSelectedUnit('')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
-                נקה סינון
-              </button>
-            )}
+            </div>
           </div>
           {lastAlert && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -450,7 +848,31 @@ export default function AvailabilityDashboard() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">סטטוס</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <div className="flex items-center justify-end gap-2">
+                      <span>סטטוס</span>
+                      <div className="flex flex-col gap-0">
+                        <button
+                          onClick={() => setStatusFilter(statusFilter === 'red' ? null : 'red')}
+                          className={`p-1 hover:bg-gray-200 rounded transition-colors ${statusFilter === 'red' ? 'bg-red-100 text-red-600' : 'text-gray-400'}`}
+                          title="הצג רק מי שלא מילא דוח"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setStatusFilter(statusFilter === 'green' ? null : 'green')}
+                          className={`p-1 hover:bg-gray-200 rounded transition-colors ${statusFilter === 'green' ? 'bg-green-100 text-green-600' : 'text-gray-400'}`}
+                          title="הצג רק מי שמילא דוח"
+                        >
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תעודת זהות</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">טלפון</th>
@@ -458,13 +880,14 @@ export default function AvailabilityDashboard() {
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">עיר</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">יחידה</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תאריך דוח אחרון</th>
-                  {(userRole === 'system_manager' || userRole === 'unit_manager' || userRole === 'admin') && (
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
-                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {users.map((user) => {
+                {users.filter((user: any) => {
+                  // Filter by status if statusFilter is set
+                  if (statusFilter === null) return true;
+                  return user.status === statusFilter;
+                }).map((user) => {
                   const fullName = user.first_name && user.last_name 
                     ? `${user.first_name} ${user.last_name}` 
                     : user.username || '-';
@@ -492,18 +915,6 @@ export default function AvailabilityDashboard() {
                           ? new Date(user.latest_report_date).toLocaleDateString('he-IL')
                           : '-'}
                       </td>
-                      {(userRole === 'system_manager' || userRole === 'unit_manager' || userRole === 'admin') && (
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleSendOTP(user.email, user.user_id)}
-                            disabled={sendingOTP.has(user.user_id)}
-                            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                            title="שלח קוד OTP למשתמש"
-                          >
-                            {sendingOTP.has(user.user_id) ? 'שולח...' : 'שלח OTP'}
-                          </button>
-                        </td>
-                      )}
                     </tr>
                   );
                 })}

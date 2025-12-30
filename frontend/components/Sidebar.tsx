@@ -55,13 +55,13 @@ export default function Sidebar({ showSidebar, setShowSidebar, userRole = '' }: 
         {/* User Management - System Manager, Unit Manager, and Admin */}
         {canAccessUserManagement && (
           <>
-            <button
-              onClick={() => router.push('/dashboard/permissions')}
-              className="w-full text-right p-4 bg-gray-50 hover:bg-green-50 rounded-lg border border-gray-200 hover:border-green-300 transition-all flex items-center justify-between"
-            >
-              <span className="font-semibold text-gray-700">ניהול משתמשים</span>
-              <span className="text-green-600">→</span>
-            </button>
+          <button
+            onClick={() => router.push('/dashboard/permissions')}
+            className="w-full text-right p-4 bg-gray-50 hover:bg-green-50 rounded-lg border border-gray-200 hover:border-green-300 transition-all flex items-center justify-between"
+          >
+            <span className="font-semibold text-gray-700">ניהול משתמשים</span>
+            <span className="text-green-600">→</span>
+          </button>
             <button
               onClick={() => router.push('/admin/organizational-structure')}
               className="w-full text-right p-4 bg-gray-50 hover:bg-green-50 rounded-lg border border-gray-200 hover:border-green-300 transition-all flex items-center justify-between"
