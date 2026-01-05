@@ -161,7 +161,16 @@ export default function AvailabilityDashboard() {
       const profileRes = await api.getProfile();
       const profileData = profileRes.data.profile;
       setProfile(profileData);
-      setUserRole(profileData?.role || '');
+      const role = profileData?.role || '';
+      setUserRole(role);
+      
+      // Check permissions - only managers can access this page
+      const isManager = ['team_manager', 'section_manager', 'branch_manager', 'unit_manager', 'system_manager', 'admin'].includes(role);
+      if (!isManager) {
+        alert('אין לך הרשאה לגשת לדף זה. רק מנהלים יכולים לגשת.');
+        router.push('/home');
+        return;
+      }
       
       // Load all approved users with their profiles (backend already filters by manager's unit hierarchy)
       const usersRes = await api.listApprovedUsers();
@@ -304,6 +313,14 @@ export default function AvailabilityDashboard() {
       return;
     }
 
+    // Check if user is authenticated
+    const token = Cookies.get('access_token');
+    if (!token) {
+      alert('אין לך הרשאה. אנא התחבר מחדש.');
+      router.push('/');
+      return;
+    }
+
     setSendingAlert(true);
     try {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -322,7 +339,14 @@ export default function AvailabilityDashboard() {
     } catch (err: any) {
       console.error('Failed to send alert:', err);
       const errorMsg = err.response?.data?.error || err.message || 'שגיאה בשליחת ההתרעה';
-      alert(`שגיאה בשליחת ההתרעה: ${errorMsg}`);
+      
+      // If 401, suggest re-login
+      if (err.response?.status === 401) {
+        alert('הטוקן פג תוקף. אנא התחבר מחדש.');
+        router.push('/');
+      } else {
+        alert(`שגיאה בשליחת ההתרעה: ${errorMsg}`);
+      }
     } finally {
       setSendingAlert(false);
     }

@@ -67,47 +67,62 @@ def check_otp_rate_limit(user):
 def send_otp_email(user, otp_token, purpose='login'):
     """Send OTP email to user"""
     import logging
+    import threading
     logger = logging.getLogger('core')
     
-    try:
-        # Try to load HTML template, fallback to plain text
+    def _send_email():
         try:
-            template_name = 'otp_login.html'
-            html_message = render_to_string(template_name, {
-                'user': user,
-                'otp_code': otp_token,
-                'expiry_minutes': settings.OTP_EXPIRY_MINUTES,
-            })
-            message = None
+            # Try to load HTML template, fallback to plain text
+            try:
+                template_name = 'otp_login.html'
+                html_message = render_to_string(template_name, {
+                    'user': user,
+                    'otp_code': otp_token,
+                    'expiry_minutes': settings.OTP_EXPIRY_MINUTES,
+                })
+                message = None
+            except Exception as e:
+                logger.warning(f"Template error: {e}")
+                html_message = None
+                message = f'''
+                Hello {user.get_full_name() or user.username},
+                
+                Your OTP code for account verification is: {otp_token}
+                
+                This code will expire in {settings.OTP_EXPIRY_MINUTES} minutes.
+                
+                If you did not request this code, please ignore this email.
+                
+                Best regards,
+                Yirok Team
+                '''
+            
+            # Use simple from email format (Gmail requires exact match with EMAIL_HOST_USER)
+            result = send_mail(
+                subject='Your OTP Code for Account Verification',
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=html_message,
+                fail_silently=False,  # Changed to False to see actual errors
+            )
+            if result:
+                logger.info(f"OTP email sent successfully to {user.email}")
+            else:
+                logger.warning(f"OTP email sending returned False for {user.email}")
         except Exception as e:
-            logger.warning(f"Template error: {e}")
-            html_message = None
-            message = f'''
-            Hello {user.get_full_name() or user.username},
-            
-            Your OTP code for account verification is: {otp_token}
-            
-            This code will expire in {settings.OTP_EXPIRY_MINUTES} minutes.
-            
-            If you did not request this code, please ignore this email.
-            
-            Best regards,
-            Yirok Team
-            '''
-        
-        send_mail(
-            subject='Your OTP Code for Account Verification',
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
-        logger.info(f"OTP email sent successfully to {user.email}")
+            error_msg = str(e)
+            logger.error(f"Error sending OTP email to {user.email}: {error_msg}", exc_info=True)
+    
+    # Send email in background thread to prevent blocking
+    try:
+        thread = threading.Thread(target=_send_email, daemon=True)
+        thread.start()
+        # Give it a moment to start, but don't wait for completion
         return True, None
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Error sending OTP email to {user.email}: {error_msg}", exc_info=True)
+        logger.error(f"Error starting email thread: {error_msg}")
         return False, error_msg
 
 
@@ -224,22 +239,23 @@ def request_otp_view(request):
         expires_at=expires_at
     )
     
-    # Send OTP via email
-    email_sent, error_msg = send_otp_email(user, otp_token, purpose='login')
+    # Send OTP via email (non-blocking)
+    # Start email sending in background, but don't wait for it
+    send_otp_email(user, otp_token, purpose='login')
     
-    if not email_sent:
-        # If email sending failed, still return the OTP (for development/testing)
-        # but inform the user about the issue
-        return Response({
-            'error': f'Failed to send OTP email. {error_msg or "Please check email configuration."}',
-            'message': 'OTP generated but email sending failed. Check server logs for details.',
-            'otp_code': otp_token if settings.DEBUG else None,  # Only show OTP in debug mode
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    return Response({
+    # Return response immediately - email will be sent in background
+    # In development mode, also return the OTP code for testing
+    response_data = {
         'message': 'OTP sent to your email address.',
         'expires_in_minutes': settings.OTP_EXPIRY_MINUTES
-    }, status=status.HTTP_200_OK)
+    }
+    
+    # Only include OTP in debug mode for development/testing
+    if settings.DEBUG:
+        response_data['otp_code'] = otp_token
+        response_data['debug_note'] = 'OTP code included in response for development. Check console/email in production.'
+    
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -329,17 +345,26 @@ def list_access_requests_view(request):
         queryset = queryset.filter(status=status_filter)
     
     # System managers and unit managers see all requests (no unit filter)
-    # Other managers see only requests from their unit
+    # Other managers see only requests from their unit based on role
     if hasattr(request.user, 'profile'):
         user_role = request.user.profile.role
         # system_manager and unit_manager see all requests (no filtering)
         if user_role not in ['system_manager', 'unit_manager'] and not request.user.is_staff:
             if request.user.profile.unit:
                 user_unit = request.user.profile.unit
-                # Get all users in this unit and its descendants
-                descendant_units = user_unit.get_descendants()
-                all_units = [user_unit] + descendant_units
-                unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+                
+                if user_role == 'section_manager':
+                    # Section manager sees only requests from their section (not descendants)
+                    unit_user_ids = Profile.objects.filter(unit=user_unit).values_list('user_id', flat=True)
+                elif user_role == 'team_manager':
+                    # Team manager sees only requests from their team (not descendants)
+                    unit_user_ids = Profile.objects.filter(unit=user_unit).values_list('user_id', flat=True)
+                else:
+                    # Other managers (branch_manager) see their unit and descendants
+                    descendant_units = user_unit.get_descendants()
+                    all_units = [user_unit] + descendant_units
+                    unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+                
                 # Also include users without a unit (unit=None) for pending requests
                 queryset = queryset.filter(
                     Q(user_id__in=unit_user_ids) | 
@@ -517,13 +542,29 @@ def list_reports_view(request):
     if not (request.user.is_staff or hasattr(request.user, 'profile') and request.user.profile.is_manager()):
         queryset = queryset.filter(user=request.user)
     else:
-        # Managers see reports from their unit
+        # Managers see reports from their unit based on role
         if hasattr(request.user, 'profile') and request.user.profile.unit:
+            user_role = request.user.profile.role
             user_unit = request.user.profile.unit
-            descendant_units = user_unit.get_descendants()
-            all_units = [user_unit] + descendant_units
-            unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
-            queryset = queryset.filter(user_id__in=unit_user_ids)
+            
+            # System manager and unit manager see all reports (no filtering)
+            if user_role in ['system_manager', 'unit_manager']:
+                # No filtering - see all reports
+                pass
+            elif user_role == 'section_manager':
+                # Section manager sees only reports from their section (not descendants)
+                unit_user_ids = Profile.objects.filter(unit=user_unit).values_list('user_id', flat=True)
+                queryset = queryset.filter(user_id__in=unit_user_ids)
+            elif user_role == 'team_manager':
+                # Team manager sees only reports from their team (not descendants)
+                unit_user_ids = Profile.objects.filter(unit=user_unit).values_list('user_id', flat=True)
+                queryset = queryset.filter(user_id__in=unit_user_ids)
+            else:
+                # Other managers (branch_manager) see their unit and descendants
+                descendant_units = user_unit.get_descendants()
+                all_units = [user_unit] + descendant_units
+                unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+                queryset = queryset.filter(user_id__in=unit_user_ids)
     
     # Filter by unit
     unit_id = request.query_params.get('unit', None)
@@ -678,10 +719,14 @@ def send_alert_view(request):
             )
             recipients.extend([p.user.email for p in manager_profiles if p.user.email])
     else:
-        # Send to all users/managers (admin only)
-        if not request.user.is_staff:
+        # Send to all users/managers (system_manager, unit_manager, or admin only)
+        user_role = None
+        if hasattr(request.user, 'profile'):
+            user_role = request.user.profile.role
+        
+        if not (request.user.is_staff or user_role in ['system_manager', 'unit_manager', 'admin']):
             return Response({
-                'error': 'Only admins can send alerts to all users.'
+                'error': 'Only system managers, unit managers, or admins can send alerts to all users.'
             }, status=status.HTTP_403_FORBIDDEN)
         
         if 'all' in send_to or 'users' in send_to:
@@ -787,13 +832,29 @@ class UserViewSet(viewsets.ModelViewSet):
         
         users = User.objects.filter(is_approved=True).select_related('profile', 'profile__unit')
         
-        # Filter by unit (for managers)
+        # Filter by role and unit hierarchy
         if hasattr(request.user, 'profile') and request.user.profile.unit and not request.user.is_staff:
+            user_role = request.user.profile.role
             user_unit = request.user.profile.unit
-            descendant_units = user_unit.get_descendants()
-            all_units = [user_unit] + descendant_units
-            unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
-            users = users.filter(id__in=unit_user_ids)
+            
+            # System manager and unit manager see all users (no filtering)
+            if user_role in ['system_manager', 'unit_manager']:
+                # No filtering - see all users
+                pass
+            elif user_role == 'section_manager':
+                # Section manager sees only users in their section (not descendants)
+                unit_user_ids = Profile.objects.filter(unit=user_unit).values_list('user_id', flat=True)
+                users = users.filter(id__in=unit_user_ids)
+            elif user_role == 'team_manager':
+                # Team manager sees only users in their team (not descendants)
+                unit_user_ids = Profile.objects.filter(unit=user_unit).values_list('user_id', flat=True)
+                users = users.filter(id__in=unit_user_ids)
+            else:
+                # Other managers (branch_manager) see their unit and descendants
+                descendant_units = user_unit.get_descendants()
+                all_units = [user_unit] + descendant_units
+                unit_user_ids = Profile.objects.filter(unit__in=all_units).values_list('user_id', flat=True)
+                users = users.filter(id__in=unit_user_ids)
         
         serializer = UserSerializer(users.order_by('-date_joined'), many=True)
         return Response({

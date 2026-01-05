@@ -21,6 +21,12 @@ class ApiClient {
         const token = Cookies.get('access_token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+        } else {
+          // Log warning if no token for protected endpoints
+          const protectedEndpoints = ['/alerts/', '/users/', '/reports/', '/access-requests/'];
+          if (protectedEndpoints.some(endpoint => config.url?.includes(endpoint))) {
+            console.warn('API: Request to protected endpoint without token:', config.url);
+          }
         }
         // Log request for debugging
         if (config.url?.includes('/locations/')) {
@@ -66,6 +72,7 @@ class ApiClient {
           try {
             const refreshToken = Cookies.get('refresh_token');
             if (refreshToken) {
+              console.log('API: Attempting to refresh token...');
               const response = await axios.post(`${API_URL}/api/auth/token/refresh/`, {
                 refresh: refreshToken,
               });
@@ -73,10 +80,21 @@ class ApiClient {
               const { access } = response.data;
               Cookies.set('access_token', access);
               originalRequest.headers.Authorization = `Bearer ${access}`;
+              console.log('API: Token refreshed successfully');
 
               return this.client(originalRequest);
+            } else {
+              console.error('API: No refresh token available');
+              // No refresh token, clear tokens and redirect to login
+              Cookies.remove('access_token');
+              Cookies.remove('refresh_token');
+              if (typeof window !== 'undefined') {
+                window.location.href = '/';
+              }
+              return Promise.reject(new Error('No refresh token available'));
             }
           } catch (refreshError) {
+            console.error('API: Token refresh failed:', refreshError);
             // Refresh failed, clear tokens and redirect to login
             Cookies.remove('access_token');
             Cookies.remove('refresh_token');
@@ -165,6 +183,11 @@ class ApiClient {
 
   // Alerts
   async sendAlert(data: any) {
+    // Ensure we have a valid token before sending
+    const token = Cookies.get('access_token');
+    if (!token) {
+      throw new Error('No access token found. Please login again.');
+    }
     return this.client.post('/alerts/send/', data);
   }
 
