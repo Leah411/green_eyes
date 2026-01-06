@@ -158,6 +158,12 @@ export default function AvailabilityDashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('loadData called with filters:', {
+        selectedUnits: Array.from(selectedUnits),
+        selectedBranches: Array.from(selectedBranches),
+        selectedSections: Array.from(selectedSections),
+        selectedTeams: Array.from(selectedTeams)
+      });
       const profileRes = await api.getProfile();
       const profileData = profileRes.data.profile;
       setProfile(profileData);
@@ -191,23 +197,26 @@ export default function AvailabilityDashboard() {
       const reportsRes = await api.listReports(unitFilter ? { unit: unitFilter } : {});
       const reports = reportsRes.data.results || reportsRes.data || [];
       
-      // Create a map of user IDs to their latest report date
+      // Create a map of user IDs to their latest report submitted_at (includes date and time)
       const reportsByUser = new Map();
       reports.forEach((report: any) => {
-        const existingDate = reportsByUser.get(report.user);
-        if (!existingDate || new Date(report.date) > new Date(existingDate)) {
-          reportsByUser.set(report.user, report.date);
+        const existingDateTime = reportsByUser.get(report.user);
+        // Use submitted_at (DateTime) instead of date (Date only) to get time as well
+        const reportDateTime = report.submitted_at || report.date;
+        if (!existingDateTime || new Date(reportDateTime) > new Date(existingDateTime)) {
+          reportsByUser.set(report.user, reportDateTime);
         }
       });
       
       // Filter users by selected units/branches/sections/teams
       let usersToShow = allUsers;
       
-      if (selectedUnitIds.length > 0) {
-        // Build a set of all relevant unit IDs (selected + all descendants)
+      if (selectedUnitIds.length > 0 && allUnits.length > 0) {
+        // Build a set of all relevant unit IDs (selected units themselves + all their descendants)
+        // This allows filtering users who belong to any unit in the selected hierarchy
         const relevantUnitIds = new Set<number>(selectedUnitIds);
         
-        // Add all descendants of selected units
+        // Add all descendants of selected units (children, grandchildren, etc.)
         const addDescendants = (unitId: number) => {
           const children = allUnits.filter(u => u.parent === unitId);
           children.forEach(child => {
@@ -216,15 +225,31 @@ export default function AvailabilityDashboard() {
           });
         };
         
+        // Add descendants for all selected units
         selectedUnitIds.forEach(id => addDescendants(id));
         
+        console.log('Filtering users:', {
+          selectedUnitIds: Array.from(selectedUnitIds),
+          relevantUnitIds: Array.from(relevantUnitIds),
+          totalUsers: allUsers.length,
+          allUnitsCount: allUnits.length
+        });
+        
         usersToShow = allUsers.filter((user: any) => {
-          const userUnitId = user.profile?.unit;
+          // user.profile?.unit can be either an ID (number) or an object with id property
+          const userUnitId = typeof user.profile?.unit === 'object' 
+            ? user.profile?.unit?.id 
+            : user.profile?.unit;
+          
           if (!userUnitId) return false;
           
-          // Check if user's unit is in the relevant units set
+          // Check if user's unit is in the relevant units set (selected units or their descendants)
           return relevantUnitIds.has(userUnitId);
         });
+        
+        console.log('Filtered users count:', usersToShow.length, 'out of', allUsers.length);
+      } else if (selectedUnitIds.length > 0 && allUnits.length === 0) {
+        console.warn('Cannot filter: allUnits not loaded yet');
       }
       
       // Merge user data with report status
@@ -283,8 +308,14 @@ export default function AvailabilityDashboard() {
           'כתובת': user.address || '-',
           'עיר': user.city || '-',
           'יחידה': user.unit ? (user.unit.name_he || user.unit.name) : '-',
-          'תאריך דוח אחרון': user.latest_report_date 
-            ? new Date(user.latest_report_date).toLocaleDateString('he-IL')
+          'תאריך ושעה דוח אחרון': user.latest_report_date 
+            ? new Date(user.latest_report_date).toLocaleString('he-IL', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              })
             : '-',
         };
       });
@@ -467,6 +498,17 @@ export default function AvailabilityDashboard() {
     }
   };
 
+  // Helper function to check if a unit is descendant of selected units
+  const isDescendantOfSelectedUnits = (unitId: number, selectedUnitsList: number[]): boolean => {
+    let current = allUnits.find(u => u.id === unitId);
+    while (current && current.parent) {
+      if (selectedUnitsList.includes(current.parent)) return true;
+      current = allUnits.find(u => u.id === current.parent);
+      if (!current) break;
+    }
+    return false;
+  };
+
   // Helper functions for checkbox handling
   const toggleUnit = (unitId: number) => {
     setSelectedUnits(prev => {
@@ -476,6 +518,42 @@ export default function AvailabilityDashboard() {
       } else {
         newSet.add(unitId);
       }
+      
+      // אם הוסרה יחידה - הסר ענפים/מדורים/צוותים שלא שייכים ליחידות שנשארו
+      if (!newSet.has(unitId)) {
+        const selectedUnitsList = Array.from(newSet);
+        setSelectedBranches(prevBranches => {
+          const filtered = new Set(prevBranches);
+          prevBranches.forEach(branchId => {
+            const branch = allUnits.find(u => u.id === branchId);
+            if (branch && !selectedUnitsList.includes(branch.parent)) {
+              filtered.delete(branchId);
+            }
+          });
+          return filtered;
+        });
+        
+        setSelectedSections(prevSections => {
+          const filtered = new Set(prevSections);
+          prevSections.forEach(sectionId => {
+            if (!isDescendantOfSelectedUnits(sectionId, selectedUnitsList)) {
+              filtered.delete(sectionId);
+            }
+          });
+          return filtered;
+        });
+        
+        setSelectedTeams(prevTeams => {
+          const filtered = new Set(prevTeams);
+          prevTeams.forEach(teamId => {
+            if (!isDescendantOfSelectedUnits(teamId, selectedUnitsList)) {
+              filtered.delete(teamId);
+            }
+          });
+          return filtered;
+        });
+      }
+      
       return newSet;
     });
   };
@@ -488,6 +566,36 @@ export default function AvailabilityDashboard() {
       } else {
         newSet.add(branchId);
       }
+      
+      // אם הוסר ענף - הסר מדורים/צוותים שלא שייכים לענפים שנשארו
+      if (!newSet.has(branchId)) {
+        const selectedBranchesList = Array.from(newSet);
+        setSelectedSections(prevSections => {
+          const filtered = new Set(prevSections);
+          prevSections.forEach(sectionId => {
+            const section = allUnits.find(u => u.id === sectionId);
+            if (section && !selectedBranchesList.includes(section.parent)) {
+              filtered.delete(sectionId);
+            }
+          });
+          return filtered;
+        });
+        
+        setSelectedTeams(prevTeams => {
+          const filtered = new Set(prevTeams);
+          prevTeams.forEach(teamId => {
+            const team = allUnits.find(u => u.id === teamId);
+            if (team) {
+              const section = allUnits.find(u => u.id === team.parent);
+              if (section && !selectedBranchesList.includes(section.parent)) {
+                filtered.delete(teamId);
+              }
+            }
+          });
+          return filtered;
+        });
+      }
+      
       return newSet;
     });
   };
@@ -500,6 +608,22 @@ export default function AvailabilityDashboard() {
       } else {
         newSet.add(sectionId);
       }
+      
+      // אם הוסר מדור - הסר צוותים שלא שייכים למדורים שנשארו
+      if (!newSet.has(sectionId)) {
+        const selectedSectionsList = Array.from(newSet);
+        setSelectedTeams(prevTeams => {
+          const filtered = new Set(prevTeams);
+          prevTeams.forEach(teamId => {
+            const team = allUnits.find(u => u.id === teamId);
+            if (team && !selectedSectionsList.includes(team.parent)) {
+              filtered.delete(teamId);
+            }
+          });
+          return filtered;
+        });
+      }
+      
       return newSet;
     });
   };
@@ -524,104 +648,46 @@ export default function AvailabilityDashboard() {
     setSelectedUnit('');
   };
   
-  // Get available options based on selections
-  // Show all options, but filter based on selections if any
+  // Get available options based on hierarchical selections
+  // יחידה -> רק הענפים שתחתיה
+  // ענף -> רק המדורים שתחתיו
+  // מדור -> רק הצוותים שתחתיו
   const getAvailableBranches = () => {
-    // If units are selected, show only branches under those units
+    // אם נבחרו יחידות - הצג רק את הענפים שתחתיהן
     if (selectedUnits.size > 0) {
       const selectedUnitsList = Array.from(selectedUnits);
       return branches.filter(b => {
-        // Check if branch's parent is a selected unit
-        if (selectedUnitsList.includes(b.parent)) return true;
-        
-        // Check if branch's parent is a descendant of a selected unit
-        let current = allUnits.find(u => u.id === b.parent);
-        while (current && current.parent) {
-          if (selectedUnitsList.includes(current.parent)) return true;
-          current = allUnits.find(u => u.id === current.parent);
-          if (!current) break;
-        }
-        return false;
+        // בדוק אם הענף שייך ישירות ליחידה שנבחרה
+        return selectedUnitsList.includes(b.parent);
       });
     }
-    // Otherwise show all branches
+    // אם לא נבחרו יחידות - הצג את כל הענפים
     return branches;
   };
   
   const getAvailableSections = () => {
-    // If branches are selected, show only sections under those branches
+    // אם נבחרו ענפים - הצג רק את המדורים שתחתיהם
     if (selectedBranches.size > 0) {
       const selectedBranchesList = Array.from(selectedBranches);
       return sections.filter(s => {
-        if (selectedBranchesList.includes(s.parent)) return true;
-        let current = allUnits.find(u => u.id === s.parent);
-        while (current && current.parent) {
-          if (selectedBranchesList.includes(current.parent)) return true;
-          current = allUnits.find(u => u.id === current.parent);
-          if (!current) break;
-        }
-        return false;
+        // בדוק אם המדור שייך ישירות לענף שנבחר
+        return selectedBranchesList.includes(s.parent);
       });
     }
-    // If units are selected (but not branches), show sections under those units
-    if (selectedUnits.size > 0) {
-      const selectedUnitsList = Array.from(selectedUnits);
-      return sections.filter(s => {
-        let current = allUnits.find(u => u.id === s.parent);
-        while (current && current.parent) {
-          if (selectedUnitsList.includes(current.parent)) return true;
-          current = allUnits.find(u => u.id === current.parent);
-          if (!current) break;
-        }
-        return false;
-      });
-    }
-    // Otherwise show all sections
+    // אם לא נבחרו ענפים - הצג את כל המדורים
     return sections;
   };
   
   const getAvailableTeams = () => {
-    // If sections are selected, show only teams under those sections
+    // אם נבחרו מדורים - הצג רק את הצוותים שתחתיהם
     if (selectedSections.size > 0) {
       const selectedSectionsList = Array.from(selectedSections);
       return teams.filter(t => {
-        if (selectedSectionsList.includes(t.parent)) return true;
-        let current = allUnits.find(u => u.id === t.parent);
-        while (current && current.parent) {
-          if (selectedSectionsList.includes(current.parent)) return true;
-          current = allUnits.find(u => u.id === current.parent);
-          if (!current) break;
-        }
-        return false;
+        // בדוק אם הצוות שייך ישירות למדור שנבחר
+        return selectedSectionsList.includes(t.parent);
       });
     }
-    // If branches are selected (but not sections), show teams under those branches
-    if (selectedBranches.size > 0) {
-      const selectedBranchesList = Array.from(selectedBranches);
-      return teams.filter(t => {
-        let current = allUnits.find(u => u.id === t.parent);
-        while (current && current.parent) {
-          if (selectedBranchesList.includes(current.parent)) return true;
-          current = allUnits.find(u => u.id === current.parent);
-          if (!current) break;
-        }
-        return false;
-      });
-    }
-    // If units are selected (but not branches/sections), show teams under those units
-    if (selectedUnits.size > 0) {
-      const selectedUnitsList = Array.from(selectedUnits);
-      return teams.filter(t => {
-        let current = allUnits.find(u => u.id === t.parent);
-        while (current && current.parent) {
-          if (selectedUnitsList.includes(current.parent)) return true;
-          current = allUnits.find(u => u.id === current.parent);
-          if (!current) break;
-        }
-        return false;
-      });
-    }
-    // Otherwise show all teams
+    // אם לא נבחרו מדורים - הצג את כל הצוותים
     return teams;
   };
 
@@ -903,7 +969,7 @@ export default function AvailabilityDashboard() {
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">כתובת</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">עיר</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">יחידה</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תאריך דוח אחרון</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תאריך ושעה דוח אחרון</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -932,11 +998,50 @@ export default function AvailabilityDashboard() {
                       <td className="px-6 py-4 text-right">{user.address || '-'}</td>
                       <td className="px-6 py-4 text-right">{user.city || '-'}</td>
                       <td className="px-6 py-4 text-right">
-                        {user.unit ? (user.unit.name_he || user.unit.name) : '-'}
+                        {(() => {
+                          if (!user.unit || !user.unit.id) return '-';
+                          
+                          // Build full hierarchy path like in profile page
+                          const unitId = user.unit.id;
+                          const unitObj = allUnits.find(u => u.id === unitId);
+                          if (!unitObj) return user.unit.name_he || user.unit.name || '-';
+                          
+                          // Build hierarchy path: unit > branch > section > team
+                          const getUnitPath = (unit: any): string[] => {
+                            const path: string[] = [];
+                            let current = unit;
+                            
+                            // Collect all ancestors
+                            while (current) {
+                              const name = current.name_he || current.name;
+                              path.unshift(name); // Add to beginning
+                              
+                              if (current.parent) {
+                                const parentId = typeof current.parent === 'object' 
+                                  ? current.parent.id 
+                                  : current.parent;
+                                current = allUnits.find(u => u.id === parentId);
+                              } else {
+                                current = null;
+                              }
+                            }
+                            
+                            return path;
+                          };
+                          
+                          const path = getUnitPath(unitObj);
+                          return path.length > 0 ? path.join(' > ') : (user.unit.name_he || user.unit.name || '-');
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-right">
                         {user.latest_report_date 
-                          ? new Date(user.latest_report_date).toLocaleDateString('he-IL')
+                          ? new Date(user.latest_report_date).toLocaleString('he-IL', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
                           : '-'}
                       </td>
                     </tr>

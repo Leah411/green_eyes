@@ -261,6 +261,8 @@ export default function Home() {
         unit_id: finalUnitId,
         address: address,
         city_id: cityId,
+        contact_name: contactName,
+        contact_phone: contactPhone,
       });
       setSuccess('הרשמה בוצעה בהצלחה! הבקשה נשלחה לאישור מנהל מערכת או מנהל יחידה.');
       setIsLogin(true);

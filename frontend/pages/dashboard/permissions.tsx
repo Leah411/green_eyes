@@ -16,6 +16,7 @@ export default function PermissionsDashboard() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [showUserEdit, setShowUserEdit] = useState(false);
   const [units, setUnits] = useState<any[]>([]);
+  const [allUnits, setAllUnits] = useState<any[]>([]); // All units for hierarchy display
   const [locations, setLocations] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   
@@ -44,6 +45,7 @@ export default function PermissionsDashboard() {
     }
     loadData();
     loadUnits();
+    loadAllUnits(); // Load all units for hierarchy display
     loadLocations();
   }, [router]);
 
@@ -54,6 +56,31 @@ export default function PermissionsDashboard() {
       setUnits(unitsData);
     } catch (err) {
       console.error('Failed to load units:', err);
+    }
+  };
+
+  const loadAllUnits = async () => {
+    try {
+      // Load all units with pagination for hierarchy display
+      let allUnitsData: any[] = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await api.listUnits({ page, page_size: 1000 });
+        const data = response.data.results || response.data || [];
+        allUnitsData = [...allUnitsData, ...data];
+        
+        if (response.data.next && data.length > 0) {
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      setAllUnits(allUnitsData);
+    } catch (err) {
+      console.error('Failed to load all units:', err);
     }
   };
 
@@ -340,7 +367,44 @@ export default function PermissionsDashboard() {
                           {roles.find(r => r.value === user.profile?.role)?.label || user.profile?.role || 'משתמש'}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          {user.profile?.unit_name || user.profile?.unit?.name || '-'}
+                          {(() => {
+                            const unitId = user.profile?.unit;
+                            if (!unitId) return '-';
+                            
+                            // Get unit ID (can be number or object)
+                            const actualUnitId = typeof unitId === 'object' ? unitId.id : unitId;
+                            if (!actualUnitId) return user.profile?.unit_name || '-';
+                            
+                            // Find unit in allUnits
+                            const unitObj = allUnits.find(u => u.id === actualUnitId);
+                            if (!unitObj) return user.profile?.unit_name || user.profile?.unit?.name || '-';
+                            
+                            // Build hierarchy path: unit > branch > section > team
+                            const getUnitPath = (unit: any): string[] => {
+                              const path: string[] = [];
+                              let current = unit;
+                              
+                              // Collect all ancestors
+                              while (current) {
+                                const name = current.name_he || current.name;
+                                path.unshift(name); // Add to beginning
+                                
+                                if (current.parent) {
+                                  const parentId = typeof current.parent === 'object' 
+                                    ? current.parent.id 
+                                    : current.parent;
+                                  current = allUnits.find(u => u.id === parentId);
+                                } else {
+                                  current = null;
+                                }
+                              }
+                              
+                              return path;
+                            };
+                            
+                            const path = getUnitPath(unitObj);
+                            return path.length > 0 ? path.join(' > ') : (user.profile?.unit_name || user.profile?.unit?.name || '-');
+                          })()}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2 justify-end">

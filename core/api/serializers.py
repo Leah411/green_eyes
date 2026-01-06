@@ -109,13 +109,15 @@ class UserSignupSerializer(serializers.ModelSerializer):
     )
     address = serializers.CharField(write_only=True, required=False, allow_blank=True)
     city_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    contact_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    contact_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     class Meta:
         model = User
         fields = (
             'username', 'email', 'password', 'password2',
             'first_name', 'last_name', 'phone', 'id_number', 'unit_id', 'role',
-            'address', 'city_id'
+            'address', 'city_id', 'contact_name', 'contact_phone'
         )
         extra_kwargs = {
             'username': {'required': False},  # Will be auto-generated from email
@@ -164,6 +166,8 @@ class UserSignupSerializer(serializers.ModelSerializer):
         role = validated_data.pop('role', 'user')
         address = validated_data.pop('address', '')
         city_id = validated_data.pop('city_id', None)
+        contact_name = validated_data.pop('contact_name', '')
+        contact_phone = validated_data.pop('contact_phone', '')
         
         # Generate username from email if not provided
         if 'username' not in validated_data or not validated_data.get('username'):
@@ -198,7 +202,9 @@ class UserSignupSerializer(serializers.ModelSerializer):
             role=role,
             id_number=id_number,
             address=address,
-            city=city
+            city=city,
+            contact_name=contact_name,
+            contact_phone=contact_phone
         )
         
         # Create access request
