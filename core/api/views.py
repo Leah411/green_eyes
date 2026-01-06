@@ -953,9 +953,9 @@ class UnitViewSet(viewsets.ModelViewSet):
         serializer = ProfileSerializer(members, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'], url_path='by-parent')
+    @action(detail=False, methods=['get'], url_path='by-parent', permission_classes=[AllowAny])
     def by_parent(self, request):
-        """Get units by parent ID and/or unit type"""
+        """Get units by parent ID and/or unit type - AllowAny for registration page"""
         parent_id = request.query_params.get('parent_id', None)
         unit_type = request.query_params.get('unit_type', None)
         

@@ -88,11 +88,14 @@ class UserSignupSerializer(serializers.ModelSerializer):
     """Serializer for user registration"""
     password = serializers.CharField(
         write_only=True, 
-        validators=[validate_password],
+        required=False,  # Optional - will be auto-generated if not provided
+        allow_blank=True,  # Allow blank since we'll generate it
+        validators=[],  # Remove validators since password will be auto-generated
         style={'input_type': 'password'}
     )
     password2 = serializers.CharField(
         write_only=True, 
+        required=False,  # Optional - will be auto-generated if not provided
         label='Confirm Password',
         style={'input_type': 'password'}
     )
@@ -115,6 +118,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
             'address', 'city_id'
         )
         extra_kwargs = {
+            'username': {'required': False},  # Will be auto-generated from email
             'email': {'required': True},
             'first_name': {'required': False},
             'last_name': {'required': False},
@@ -129,8 +133,10 @@ class UserSignupSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         """Validate password match and unit exists"""
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        # Only validate password if both are provided
+        if attrs.get('password') and attrs.get('password2'):
+            if attrs['password'] != attrs['password2']:
+                raise serializers.ValidationError({"password": "Password fields didn't match."})
         
         unit_id = attrs.get('unit_id')
         if unit_id:
@@ -150,13 +156,31 @@ class UserSignupSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         """Create user, profile, and access request"""
-        password = validated_data.pop('password')
-        validated_data.pop('password2')
+        # Get password (or generate one if not provided - for OTP-based systems)
+        password = validated_data.pop('password', None)
+        validated_data.pop('password2', None)
         id_number = validated_data.pop('id_number', '')
         unit_id = validated_data.pop('unit_id', None)
         role = validated_data.pop('role', 'user')
         address = validated_data.pop('address', '')
         city_id = validated_data.pop('city_id', None)
+        
+        # Generate username from email if not provided
+        if 'username' not in validated_data or not validated_data.get('username'):
+            email = validated_data.get('email', '')
+            # Use email prefix as username, or generate unique one
+            username_base = email.split('@')[0] if email else 'user'
+            username = username_base
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{username_base}{counter}"
+                counter += 1
+            validated_data['username'] = username
+        
+        # Generate random password if not provided (users will use OTP to login)
+        if not password:
+            import secrets
+            password = secrets.token_urlsafe(32)  # Generate secure random password
         
         # Create user
         user = User.objects.create_user(**validated_data)

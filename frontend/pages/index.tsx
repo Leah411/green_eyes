@@ -50,10 +50,9 @@ export default function Home() {
       const unitsRes = await api.getUnitsByParent(null, 'unit'); // Get root units
       const unitsData = unitsRes.data.results || unitsRes.data || [];
       const unitsArray = Array.isArray(unitsData) ? unitsData : [];
-      // Filter out "יחידה ראשית" (Main Unit) with ID 1
-      const filteredUnits = unitsArray.filter((unit: any) => unit.id !== 1);
-      console.log('Loaded units:', filteredUnits.length, filteredUnits);
-      setUnits(filteredUnits);
+      // Show all root units (including the main organizational unit)
+      console.log('Loaded units:', unitsArray.length, unitsArray);
+      setUnits(unitsArray);
     } catch (err) {
       console.error('Failed to load units:', err);
       setUnits([]);
