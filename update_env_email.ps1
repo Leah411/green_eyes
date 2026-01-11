@@ -2,8 +2,8 @@
 # Run this after you get your App Password from Google
 
 Write-Host "`n=== Gmail Email Configuration ===" -ForegroundColor Cyan
-Write-Host "Email: baenaimyarok@gmail.com`n" -ForegroundColor Green
 
+$emailAddress = Read-Host "Enter your Gmail address"
 $appPassword = Read-Host "Enter your 16-character App Password (from Google)"
 $appPassword = $appPassword -replace '\s+', ''  # Remove spaces
 
@@ -46,9 +46,9 @@ $envContent += "EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend"
 $envContent += "EMAIL_HOST=smtp.gmail.com"
 $envContent += "EMAIL_PORT=587"
 $envContent += "EMAIL_USE_TLS=True"
-$envContent += "EMAIL_HOST_USER=baenaimyarok@gmail.com"
+$envContent += "EMAIL_HOST_USER=$emailAddress"
 $envContent += "EMAIL_HOST_PASSWORD=$appPassword"
-$envContent += "DEFAULT_FROM_EMAIL=baenaimyarok@gmail.com"
+$envContent += "DEFAULT_FROM_EMAIL=$emailAddress"
 
 # Write to file
 $envContent | Set-Content .env
@@ -57,5 +57,5 @@ Write-Host "`n[OK] .env file updated successfully!" -ForegroundColor Green
 Write-Host "`nNext steps:" -ForegroundColor Cyan
 Write-Host "1. Restart your Django server (Ctrl+C then: python manage.py runserver)" -ForegroundColor White
 Write-Host "2. Test by requesting an OTP" -ForegroundColor White
-Write-Host "3. Check the inbox of baenaimyarok@gmail.com" -ForegroundColor White
+Write-Host "3. Check the inbox of $emailAddress" -ForegroundColor White
 
