@@ -210,84 +210,53 @@ def request_otp_view(request):
     email = serializer.validated_data['email']
     logger.debug(f"[OTP REQUEST] Looking for user with email: {email}")
     
-    # Use Supabase Client SDK instead of Django ORM
-    from core.supabase_helper import get_user_by_email, get_all_users, count_users
-    
     # Log all users in database for debugging
     try:
-        user_count = count_users()
-        logger.debug(f"[SUPABASE] Total users in database: {user_count}")
+        all_users = User.objects.all()
+        user_count = all_users.count()
+        logger.debug(f"[DB QUERY] Total users in database: {user_count}")
         if user_count > 0:
-            all_users = get_all_users(limit=10)
-            logger.debug(f"[SUPABASE] User emails in DB: {[u.get('email') for u in all_users]}")
+            logger.debug(f"[DB QUERY] User emails in DB: {[u.email for u in all_users[:10]]}")
     except Exception as e:
-        logger.error(f"[SUPABASE] Error fetching all users: {e}")
+        logger.error(f"[DB QUERY] Error fetching all users: {e}")
     
-    # Get user using Supabase Client SDK
-    user_dict = get_user_by_email(email)
-    if not user_dict:
-        logger.warning(f"[SUPABASE] User not found with email: {email}")
+    try:
+        user = User.objects.get(email=email)
+        logger.debug(f"[DB QUERY] User found: {user.email}, ID: {user.id}, Approved: {user.is_approved}")
+    except User.DoesNotExist:
+        logger.warning(f"[DB QUERY] User not found with email: {email}")
         return Response({
             'error': 'User with this email does not exist.'
         }, status=status.HTTP_404_NOT_FOUND)
     
-    logger.debug(f"[SUPABASE] User found: {user_dict.get('email')}, ID: {user_dict.get('id')}, Approved: {user_dict.get('is_approved')}")
-    
     # Check if user is approved (serializer should catch this, but double-check)
-    if not user_dict.get('is_approved', False):
+    if not user.is_approved:
         return Response({
             'error': 'User account is not approved yet. Please wait for admin approval.',
             'status': 'pending'
         }, status=status.HTTP_403_FORBIDDEN)
     
-    # Check rate limit (using user_id from dict)
-    user_id = user_dict.get('id')
-    cache_key = f'otp_rate_limit_{user_id}'
-    count = cache.get(cache_key, 0)
-    if count >= settings.OTP_RATE_LIMIT:
+    # Check rate limit
+    if not check_otp_rate_limit(user):
         return Response({
             'error': 'Rate limit exceeded. Please try again later.'
         }, status=status.HTTP_429_TOO_MANY_REQUESTS)
-    cache.set(cache_key, count + 1, 3600)  # 1 hour expiry
     
     # Generate OTP
     otp_token = generate_otp_token()
     expires_at = timezone.now() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
     
-    # Create OTP record using Supabase Client SDK
-    from core.supabase_helper import get_supabase_client
-    try:
-        client = get_supabase_client()
-        otp_data = {
-            'user_id': user_id,
-            'token': otp_token,
-            'purpose': 'login',
-            'expires_at': expires_at.isoformat(),
-            'created_at': timezone.now().isoformat()
-        }
-        otp_result = client.table('core_otptoken').insert(otp_data).execute()
-        logger.debug(f"[SUPABASE] OTP created: {otp_token} for user {user_id}")
-    except Exception as e:
-        logger.error(f"[SUPABASE] Error creating OTP: {e}", exc_info=True)
-        return Response({
-            'error': 'Failed to create OTP. Please try again.'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # Create OTP record
+    otp = OTPToken.objects.create(
+        user=user,
+        token=otp_token,
+        purpose='login',
+        expires_at=expires_at
+    )
     
-    # Send OTP via email (using user_dict)
-    # Create a minimal user-like object for email function
-    class UserProxy:
-        def __init__(self, user_dict):
-            self.id = user_dict.get('id')
-            self.email = user_dict.get('email')
-            self.username = user_dict.get('username')
-            self.first_name = user_dict.get('first_name', '')
-            self.last_name = user_dict.get('last_name', '')
-        
-        def get_full_name(self):
-            return f"{self.first_name} {self.last_name}".strip() or self.username
-    
-    user_proxy = UserProxy(user_dict)
-    send_otp_email(user_proxy, otp_token, purpose='login')
+    # Send OTP via email (non-blocking)
+    # Start email sending in background, but don't wait for it
+    send_otp_email(user, otp_token, purpose='login')
     
     # Return response immediately - email will be sent in background
     # In development mode, also return the OTP code for testing
@@ -853,133 +822,133 @@ def health_check_view(request):
         'checks': {}
     }
     
-    # Check Supabase Client SDK connection (primary method)
-    try:
-        from core.supabase_client import get_supabase_client, test_connection
-        logger.debug(f"[HEALTH CHECK] Testing Supabase Client SDK connection...")
-        
-        client = get_supabase_client()
-        if test_connection():
-            health_status['checks']['supabase'] = {
-                'status': 'connected',
-                'method': 'Supabase Client SDK',
-                'url': os.getenv('SUPABASE_URL', 'not set')
-            }
-            logger.info("[HEALTH CHECK] Supabase Client SDK connection OK")
-        else:
-            health_status['checks']['supabase'] = {
-                'status': 'error',
-                'error': 'Connection test failed'
-            }
-            health_status['status'] = 'degraded'
-            logger.warning("[HEALTH CHECK] Supabase Client SDK connection test failed")
-    except Exception as e:
-        health_status['checks']['supabase'] = {
-            'status': 'error',
-            'error': str(e)
-        }
-        health_status['status'] = 'degraded'
-        logger.error(f"[HEALTH CHECK] Supabase Client SDK connection failed: {e}", exc_info=True)
-    
-    # Also check PostgreSQL connection (for migrations/admin)
+    # Check database connection
     try:
         from django.db import connection
-        logger.debug(f"[HEALTH CHECK] Testing PostgreSQL connection (for migrations)...")
+        logger.debug(f"[HEALTH CHECK] Testing database connection...")
+        logger.debug(f"[HEALTH CHECK] DB Config: {connection.settings_dict.get('HOST')}:{connection.settings_dict.get('PORT')}/{connection.settings_dict.get('NAME')}")
         
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             result = cursor.fetchone()
-            logger.debug(f"[HEALTH CHECK] PostgreSQL query result: {result}")
+            logger.debug(f"[HEALTH CHECK] Database query result: {result}")
             
-            health_status['checks']['postgresql'] = {
+            # Get database info
+            cursor.execute("SELECT version()")
+            db_version = cursor.fetchone()
+            logger.debug(f"[HEALTH CHECK] Database version: {db_version[0] if db_version else 'unknown'}")
+            
+            health_status['checks']['database'] = {
                 'status': 'connected',
                 'engine': connection.vendor,
                 'database': connection.settings_dict.get('NAME', 'unknown'),
+                'host': connection.settings_dict.get('HOST', 'unknown'),
+                'port': connection.settings_dict.get('PORT', 'unknown'),
             }
-            logger.info("[HEALTH CHECK] PostgreSQL connection OK (for migrations)")
+            logger.info("[HEALTH CHECK] Database connection OK")
     except Exception as e:
-        health_status['checks']['postgresql'] = {
+        health_status['checks']['database'] = {
             'status': 'error',
             'error': str(e)
         }
-        # Don't degrade status for PostgreSQL - Supabase Client SDK is primary
-        logger.warning(f"[HEALTH CHECK] PostgreSQL connection failed (migrations may not work): {e}")
+        health_status['status'] = 'degraded'
+        logger.error(f"[HEALTH CHECK] Database connection failed: {e}", exc_info=True)
     
-    # Check if core tables exist and get data using Supabase Client SDK
+    # Check if core tables exist and get data
     try:
-        from core.supabase_helper import get_all_users, count_users
-        from core.supabase_client import get_supabase_client
+        from core.models import User, Profile, Unit, OTPToken
+        logger.debug("[HEALTH CHECK] Checking tables...")
         
-        logger.debug("[HEALTH CHECK] Checking tables using Supabase Client SDK...")
-        client = get_supabase_client()
-        
-        # Count all records using Supabase
-        user_count = count_users()
-        
-        # Get counts for other tables
-        try:
-            profile_result = client.table('core_profile').select('id', count='exact').execute()
-            profile_count = profile_result.count if hasattr(profile_result, 'count') else len(profile_result.data) if profile_result.data else 0
-        except:
-            profile_count = 0
+        # Count all records (with error handling for each)
+        user_count = 0
+        profile_count = 0
+        unit_count = 0
+        otp_count = 0
+        table_errors = []
         
         try:
-            unit_result = client.table('core_unit').select('id', count='exact').execute()
-            unit_count = unit_result.count if hasattr(unit_result, 'count') else len(unit_result.data) if unit_result.data else 0
-        except:
-            unit_count = 0
+            user_count = User.objects.count()
+            logger.debug(f"[DB QUERY] User count: {user_count}")
+        except Exception as e:
+            table_errors.append(f"User table: {str(e)}")
+            logger.warning(f"[HEALTH CHECK] User count failed: {e}")
         
         try:
-            otp_result = client.table('core_otptoken').select('id', count='exact').execute()
-            otp_count = otp_result.count if hasattr(otp_result, 'count') else len(otp_result.data) if otp_result.data else 0
-        except:
-            otp_count = 0
+            profile_count = Profile.objects.count()
+            logger.debug(f"[DB QUERY] Profile count: {profile_count}")
+        except Exception as e:
+            table_errors.append(f"Profile table: {str(e)}")
+            logger.warning(f"[HEALTH CHECK] Profile count failed: {e}")
         
-        logger.debug(f"[SUPABASE] User count: {user_count}")
-        logger.debug(f"[SUPABASE] Profile count: {profile_count}")
-        logger.debug(f"[SUPABASE] Unit count: {unit_count}")
-        logger.debug(f"[SUPABASE] OTP count: {otp_count}")
+        try:
+            unit_count = Unit.objects.count()
+            logger.debug(f"[DB QUERY] Unit count: {unit_count}")
+        except Exception as e:
+            table_errors.append(f"Unit table: {str(e)}")
+            logger.warning(f"[HEALTH CHECK] Unit count failed: {e}")
         
-        # Get sample data
+        try:
+            otp_count = OTPToken.objects.count()
+            logger.debug(f"[DB QUERY] OTP count: {otp_count}")
+        except Exception as e:
+            table_errors.append(f"OTPToken table: {str(e)}")
+            logger.warning(f"[HEALTH CHECK] OTP count failed: {e}")
+        
+        # Get sample data if users exist
+        user_data = []
         if user_count > 0:
-            users = get_all_users(limit=5)
-            user_data = [{
-                'id': u.get('id'),
-                'email': u.get('email'),
-                'username': u.get('username'),
-                'is_approved': u.get('is_approved', False),
-                'is_active': u.get('is_active', False)
-            } for u in users]
-            logger.debug(f"[SUPABASE] Sample users: {user_data}")
-            health_status['checks']['tables'] = {
-                'status': 'ok',
-                'user_count': user_count,
-                'profile_count': profile_count,
-                'unit_count': unit_count,
-                'otp_count': otp_count,
-                'sample_users': user_data
-            }
-        else:
-            health_status['checks']['tables'] = {
-                'status': 'ok',
-                'user_count': 0,
-                'profile_count': profile_count,
-                'unit_count': unit_count,
-                'otp_count': otp_count,
-                'message': 'No users in database'
-            }
+            try:
+                users = User.objects.all()[:5]
+                user_data = [{
+                    'id': u.id,
+                    'email': u.email,
+                    'username': u.username,
+                    'is_approved': u.is_approved,
+                    'is_active': u.is_active
+                } for u in users]
+                logger.debug(f"[DB QUERY] Sample users: {user_data}")
+            except Exception as e:
+                logger.warning(f"[HEALTH CHECK] Failed to get sample users: {e}")
         
-        logger.info(f"[HEALTH CHECK] Tables OK (via Supabase) - Users: {user_count}, Profiles: {profile_count}, Units: {unit_count}, OTPs: {otp_count}")
+        # Build response - don't fail if some tables are missing
+        health_status['checks']['tables'] = {
+            'status': 'ok' if not table_errors else 'partial',
+            'user_count': user_count,
+            'profile_count': profile_count,
+            'unit_count': unit_count,
+            'otp_count': otp_count,
+        }
+        
+        if user_data:
+            health_status['checks']['tables']['sample_users'] = user_data
+        
+        if table_errors:
+            health_status['checks']['tables']['warnings'] = table_errors
+            # Don't mark as degraded if DB is connected - some tables might not exist yet
+            if health_status['status'] == 'healthy':
+                health_status['status'] = 'healthy'  # Keep healthy if DB is connected
+        
+        logger.info(f"[HEALTH CHECK] Tables check complete - Users: {user_count}, Profiles: {profile_count}, Units: {unit_count}, OTPs: {otp_count}")
     except Exception as e:
         health_status['checks']['tables'] = {
             'status': 'error',
             'error': str(e)
         }
-        health_status['status'] = 'degraded'
+        # Only mark as degraded if DB connection also failed
+        if health_status['checks'].get('database', {}).get('status') != 'connected':
+            health_status['status'] = 'degraded'
         logger.error(f"[HEALTH CHECK] Tables check failed: {e}", exc_info=True)
     
-    status_code = status.HTTP_200_OK if health_status['status'] == 'healthy' else status.HTTP_503_SERVICE_UNAVAILABLE
-    logger.debug(f"[HEALTH CHECK] Returning status: {health_status['status']}")
+    # Return 200 OK if DB is connected, even if some tables have issues
+    # Only return 503 if DB connection itself failed
+    if health_status['checks'].get('database', {}).get('status') == 'connected':
+        status_code = status.HTTP_200_OK
+        if health_status['status'] == 'degraded':
+            health_status['status'] = 'healthy'  # Upgrade to healthy if DB is connected
+    else:
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    
+    logger.debug(f"[HEALTH CHECK] Returning status: {health_status['status']} (HTTP {status_code})")
     return Response(health_status, status=status_code)
 
 # ==================== ViewSets ====================

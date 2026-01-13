@@ -133,7 +133,7 @@ else:
     # Default to Transaction Pooler values
     DB_NAME = os.getenv('DB_NAME') or os.getenv('dbname', 'postgres')
     DB_USER = os.getenv('DB_USER') or os.getenv('user', 'postgres.fhikehkuookglfjomxen')
-    DB_PASS = os.getenv('DB_PASS') or os.getenv('password', 'i52hd1FMm3mnwJVX')
+    DB_PASS = os.getenv('DB_PASS') or os.getenv('password', 'BnDgPKyYpjHCx9vy')  # Updated password
     DB_HOST = os.getenv('DB_HOST') or os.getenv('host', 'aws-1-ap-southeast-2.pooler.supabase.com')
     DB_PORT = os.getenv('DB_PORT') or os.getenv('port', '6543')
     sslmode = 'require'
