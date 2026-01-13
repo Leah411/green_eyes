@@ -181,7 +181,11 @@ DATABASES = {
         'PORT': DB_PORT,
         'OPTIONS': {
             'sslmode': sslmode,  # Supabase requires SSL
-            'connect_timeout': 10,  # 10 second timeout
+            'connect_timeout': 30,  # 30 second timeout (increased for pooler)
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5,
         },
         'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
     }
