@@ -166,10 +166,6 @@ logger.info(f"[DB CONFIG] DB_PASS (password): {'*' * len(DB_PASS) if DB_PASS els
 logger.info(f"[DB CONFIG] SSL Mode: {sslmode}")
 logger.info(f"[DB CONFIG] Pool Mode: transaction")
 
-# Validate password format (should be 16 characters for Supabase)
-if DB_PASS and len(DB_PASS) != 16:
-    logger.warning(f"[DB CONFIG] WARNING: Password length is {len(DB_PASS)}, expected 16 for Supabase. Check for extra spaces or incorrect password.")
-
 # Configure PostgreSQL connection with Transaction Pooler
 DATABASES = {
     'default': {
