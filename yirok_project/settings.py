@@ -166,7 +166,7 @@ logger.info(f"[DB CONFIG] DB_PASS (password): {'*' * len(DB_PASS) if DB_PASS els
 logger.info(f"[DB CONFIG] SSL Mode: {sslmode}")
 logger.info(f"[DB CONFIG] Pool Mode: transaction")
 
-# Configure PostgreSQL connection with Transaction Pooler
+# Configure PostgreSQL connection with Render PostgreSQL
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -176,14 +176,10 @@ DATABASES = {
         'HOST': DB_HOST,
         'PORT': DB_PORT,
         'OPTIONS': {
-            'sslmode': sslmode,  # Supabase requires SSL
-            'connect_timeout': 30,  # 30 second timeout (increased for pooler)
-            'keepalives': 1,
-            'keepalives_idle': 30,
-            'keepalives_interval': 10,
-            'keepalives_count': 5,
+            'sslmode': sslmode,  # Render PostgreSQL requires SSL
+            'connect_timeout': 10,  # 10 second timeout
         },
-        'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
+        'CONN_MAX_AGE': 0,  # Don't pool connections (fixes SSL reuse issues)
     }
 }
 
