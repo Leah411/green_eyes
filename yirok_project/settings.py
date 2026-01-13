@@ -94,6 +94,7 @@ DB_PORT = os.getenv('DB_PORT', '5432')
 
 # Use PostgreSQL if all required variables are set, otherwise fallback to SQLite (local dev only)
 if all([DB_NAME, DB_USER, DB_PASS, DB_HOST]):
+    # Supabase requires SSL connections
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -102,8 +103,18 @@ if all([DB_NAME, DB_USER, DB_PASS, DB_HOST]):
             'PASSWORD': DB_PASS,
             'HOST': DB_HOST,
             'PORT': DB_PORT,
+            'OPTIONS': {
+                'sslmode': 'require',  # Supabase requires SSL
+                'connect_timeout': 10,  # 10 second timeout
+            },
+            'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
         }
     }
+    
+    # Log database configuration (without password)
+    import logging
+    logger = logging.getLogger('django')
+    logger.info(f"Database configured: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (SSL required)")
 else:
     # Fallback to SQLite only if database variables are not set (local development)
     # In production, this should never happen - all DB variables must be set

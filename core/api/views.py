@@ -793,13 +793,57 @@ def send_alert_view(request):
 @permission_classes([AllowAny])
 def health_check_view(request):
     """
-    Health check endpoint.
+    Health check endpoint with database connectivity check.
     """
-    return Response({
+    import logging
+    logger = logging.getLogger('core')
+    
+    health_status = {
         'status': 'healthy',
         'timestamp': timezone.now().isoformat(),
-        'version': '1.0.0'
-    }, status=status.HTTP_200_OK)
+        'version': '1.0.0',
+        'checks': {}
+    }
+    
+    # Check database connection
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+            health_status['checks']['database'] = {
+                'status': 'connected',
+                'engine': connection.vendor,
+                'database': connection.settings_dict.get('NAME', 'unknown')
+            }
+            logger.info("Health check: Database connection OK")
+    except Exception as e:
+        health_status['checks']['database'] = {
+            'status': 'error',
+            'error': str(e)
+        }
+        health_status['status'] = 'degraded'
+        logger.error(f"Health check: Database connection failed: {e}")
+    
+    # Check if core tables exist
+    try:
+        from core.models import User
+        user_count = User.objects.count()
+        health_status['checks']['tables'] = {
+            'status': 'ok',
+            'user_count': user_count
+        }
+        logger.info(f"Health check: Tables OK, {user_count} users found")
+    except Exception as e:
+        health_status['checks']['tables'] = {
+            'status': 'error',
+            'error': str(e)
+        }
+        health_status['status'] = 'degraded'
+        logger.error(f"Health check: Tables check failed: {e}")
+    
+    status_code = status.HTTP_200_OK if health_status['status'] == 'healthy' else status.HTTP_503_SERVICE_UNAVAILABLE
+    return Response(health_status, status=status_code)
 
 # ==================== ViewSets ====================
 
