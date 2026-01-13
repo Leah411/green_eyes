@@ -85,43 +85,49 @@ AUTH_USER_MODEL = 'core.User'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Get Supabase connection from SUPABASE_URL and SUPABASE_KEY (if provided)
-# Or use direct DB connection parameters
+# Supabase Configuration
+# Using Supabase Client SDK (HTTP API) instead of direct PostgreSQL connection
 SUPABASE_URL = os.getenv('SUPABASE_URL', 'https://fhikehkuookglfjomxen.supabase.co')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZoaWtlaGt1b29rZ2xmam9teGVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4ODgzMjQsImV4cCI6MjA3OTQ2NDMyNH0.0bWareYYdHxMh2VCZNbO3He3OoGg1K4QLZtjbgFM55g')
 
-# Extract DB_HOST from SUPABASE_URL
-# SUPABASE_URL format: https://[project-ref].supabase.co
-# DB_HOST format: db.[project-ref].supabase.co
+# Log Supabase configuration
+import logging
+logger = logging.getLogger('django')
+logger.info(f"[SUPABASE CONFIG] Using Supabase Client SDK")
+logger.info(f"[SUPABASE CONFIG] SUPABASE_URL: {SUPABASE_URL}")
+logger.info(f"[SUPABASE CONFIG] SUPABASE_KEY: {'*' * 20}... (length: {len(SUPABASE_KEY) if SUPABASE_KEY else 0})")
+
+# Initialize Supabase client on startup
+try:
+    from core.supabase_client import get_supabase_client, test_connection
+    supabase_client = get_supabase_client()
+    logger.info(f"[SUPABASE] Client initialized successfully")
+    
+    # Test connection
+    if test_connection():
+        logger.info(f"[SUPABASE] Connection test passed")
+    else:
+        logger.warning(f"[SUPABASE] Connection test failed - but continuing anyway")
+except Exception as e:
+    logger.error(f"[SUPABASE] Failed to initialize client: {e}", exc_info=True)
+    # Continue anyway - might work later
+
+# Still need PostgreSQL connection for Django ORM (migrations, admin, etc.)
+# But we'll use Supabase Client SDK for all data operations
+# Extract DB_HOST from SUPABASE_URL for fallback PostgreSQL connection
 if SUPABASE_URL:
-    # Remove https:// and extract project ref
     project_ref = SUPABASE_URL.replace('https://', '').replace('http://', '').replace('.supabase.co', '')
     DB_HOST = f'db.{project_ref}.supabase.co'
 else:
-    # Fallback to direct DB_HOST env var
     DB_HOST = os.getenv('DB_HOST', 'db.fhikehkuookglfjomxen.supabase.co')
 
-# Database connection parameters
 DB_NAME = os.getenv('DB_NAME', 'postgres')
 DB_USER = os.getenv('DB_USER', 'postgres')
-DB_PASS = os.getenv('DB_PASS', 'i52hd1FMm3mnwJVX')  # Hard-coded for testing
+DB_PASS = os.getenv('DB_PASS', 'i52hd1FMm3mnwJVX')
 DB_PORT = os.getenv('DB_PORT', '5432')
 
-# Log hard-coded values for debugging
-import logging
-logger = logging.getLogger('django')
-logger.info(f"[DB CONFIG] Using HARD-CODED values (testing mode)")
-logger.info(f"[DB CONFIG] DB_NAME: {DB_NAME}")
-logger.info(f"[DB CONFIG] DB_USER: {DB_USER}")
-logger.info(f"[DB CONFIG] DB_HOST: {DB_HOST}")
-logger.info(f"[DB CONFIG] DB_PORT: {DB_PORT}")
-logger.info(f"[DB CONFIG] DB_PASS: {'*' * len(DB_PASS)} (length: {len(DB_PASS)})")
-
-# Use PostgreSQL with hard-coded values
-# Try to force IPv4 connection (Supabase IPv6 might not be reachable from Render)
-# Note: The IPv6 error suggests Render can't reach Supabase via IPv6
-# We'll try using the pooler connection string format or direct IPv4
-
+# Keep PostgreSQL connection for Django admin, migrations, etc.
+# But primary data operations will use Supabase Client SDK
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -131,28 +137,14 @@ DATABASES = {
         'HOST': DB_HOST,
         'PORT': DB_PORT,
         'OPTIONS': {
-            'sslmode': 'require',  # Supabase requires SSL
-            'connect_timeout': 10,  # 10 second timeout
+            'sslmode': 'require',
+            'connect_timeout': 10,
         },
-        'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
+        'CONN_MAX_AGE': 600,
     }
 }
 
-# Try to resolve hostname to IPv4 explicitly
-# If IPv6 is not reachable, we need to use IPv4
-import socket
-try:
-    # Try to get IPv4 address
-    ipv4_address = socket.gethostbyname(DB_HOST)
-    logger.info(f"[DB CONFIG] Resolved {DB_HOST} to IPv4: {ipv4_address}")
-    # Use IP address instead of hostname to force IPv4
-    DATABASES['default']['HOST'] = ipv4_address
-    logger.info(f"[DB CONFIG] Using IP address instead of hostname to force IPv4")
-except socket.gaierror as e:
-    logger.warning(f"[DB CONFIG] Could not resolve hostname to IPv4: {e}")
-    logger.warning(f"[DB CONFIG] Will try with hostname (may fail with IPv6)")
-
-logger.info(f"[DB CONFIG] Database configured: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (SSL required)")
+logger.info(f"[DB CONFIG] PostgreSQL connection configured (for migrations/admin): {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
 
 
 # Password validation
