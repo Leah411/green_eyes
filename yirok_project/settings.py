@@ -85,13 +85,27 @@ AUTH_USER_MODEL = 'core.User'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# TEMPORARY: Hard-coded database parameters for testing connection
-# TODO: Revert to environment variables after testing
-DB_NAME = 'postgres'  # Hard-coded for testing
-DB_USER = 'postgres'  # Hard-coded for testing
-DB_PASS = 'i52hd1FMm3mnwJVX'  # Hard-coded for testing
-DB_HOST = 'db.fhikehkuookglfjomxen.supabase.co'  # Hard-coded for testing
-DB_PORT = '5432'  # Hard-coded for testing (Direct connection)
+# Get Supabase connection from SUPABASE_URL and SUPABASE_KEY (if provided)
+# Or use direct DB connection parameters
+SUPABASE_URL = os.getenv('SUPABASE_URL', 'https://fhikehkuookglfjomxen.supabase.co')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZoaWtlaGt1b29rZ2xmam9teGVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4ODgzMjQsImV4cCI6MjA3OTQ2NDMyNH0.0bWareYYdHxMh2VCZNbO3He3OoGg1K4QLZtjbgFM55g')
+
+# Extract DB_HOST from SUPABASE_URL
+# SUPABASE_URL format: https://[project-ref].supabase.co
+# DB_HOST format: db.[project-ref].supabase.co
+if SUPABASE_URL:
+    # Remove https:// and extract project ref
+    project_ref = SUPABASE_URL.replace('https://', '').replace('http://', '').replace('.supabase.co', '')
+    DB_HOST = f'db.{project_ref}.supabase.co'
+else:
+    # Fallback to direct DB_HOST env var
+    DB_HOST = os.getenv('DB_HOST', 'db.fhikehkuookglfjomxen.supabase.co')
+
+# Database connection parameters
+DB_NAME = os.getenv('DB_NAME', 'postgres')
+DB_USER = os.getenv('DB_USER', 'postgres')
+DB_PASS = os.getenv('DB_PASS', 'i52hd1FMm3mnwJVX')  # Hard-coded for testing
+DB_PORT = os.getenv('DB_PORT', '5432')
 
 # Log hard-coded values for debugging
 import logging
