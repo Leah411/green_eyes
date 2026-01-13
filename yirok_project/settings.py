@@ -85,49 +85,62 @@ AUTH_USER_MODEL = 'core.User'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Supabase Configuration
-# Using Supabase Client SDK (HTTP API) instead of direct PostgreSQL connection
-SUPABASE_URL = os.getenv('SUPABASE_URL', 'https://fhikehkuookglfjomxen.supabase.co')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZoaWtlaGt1b29rZ2xmam9teGVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4ODgzMjQsImV4cCI6MjA3OTQ2NDMyNH0.0bWareYYdHxMh2VCZNbO3He3OoGg1K4QLZtjbgFM55g')
+# Supabase Transaction Pooler (PgBouncer) Configuration
+# Using pooler to avoid IPv6 issues on Render
+# Format: postgresql://postgres.PROJECT_REF:<PASSWORD>@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require
 
-# Log Supabase configuration
 import logging
 logger = logging.getLogger('django')
-logger.info(f"[SUPABASE CONFIG] Using Supabase Client SDK")
-logger.info(f"[SUPABASE CONFIG] SUPABASE_URL: {SUPABASE_URL}")
-logger.info(f"[SUPABASE CONFIG] SUPABASE_KEY: {'*' * 20}... (length: {len(SUPABASE_KEY) if SUPABASE_KEY else 0})")
 
-# Initialize Supabase client on startup
-try:
-    from core.supabase_client import get_supabase_client, test_connection
-    supabase_client = get_supabase_client()
-    logger.info(f"[SUPABASE] Client initialized successfully")
-    
-    # Test connection
-    if test_connection():
-        logger.info(f"[SUPABASE] Connection test passed")
-    else:
-        logger.warning(f"[SUPABASE] Connection test failed - but continuing anyway")
-except Exception as e:
-    logger.error(f"[SUPABASE] Failed to initialize client: {e}", exc_info=True)
-    # Continue anyway - might work later
+# Support both DATABASE_URL and individual environment variables
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Still need PostgreSQL connection for Django ORM (migrations, admin, etc.)
-# But we'll use Supabase Client SDK for all data operations
-# Extract DB_HOST from SUPABASE_URL for fallback PostgreSQL connection
-if SUPABASE_URL:
-    project_ref = SUPABASE_URL.replace('https://', '').replace('http://', '').replace('.supabase.co', '')
-    DB_HOST = f'db.{project_ref}.supabase.co'
+if DATABASE_URL:
+    # Parse DATABASE_URL if provided
+    # Format: postgresql://user:pass@host:port/dbname?params
+    import urllib.parse
+    try:
+        parsed = urllib.parse.urlparse(DATABASE_URL)
+        DB_NAME = parsed.path[1:] if parsed.path else 'postgres'  # Remove leading /
+        DB_USER = parsed.username or 'postgres'
+        DB_PASS = parsed.password or ''
+        DB_HOST = parsed.hostname or ''
+        DB_PORT = parsed.port or '6543'
+        
+        # Parse query parameters for sslmode
+        query_params = urllib.parse.parse_qs(parsed.query)
+        sslmode = query_params.get('sslmode', ['require'])[0]
+        
+        logger.info(f"[DB CONFIG] Using DATABASE_URL from environment")
+    except Exception as e:
+        logger.error(f"[DB CONFIG] Failed to parse DATABASE_URL: {e}")
+        # Fallback to individual variables
+        DB_NAME = os.getenv('DB_NAME', 'postgres')
+        DB_USER = os.getenv('DB_USER', 'postgres')
+        DB_PASS = os.getenv('DB_PASS', '')
+        DB_HOST = os.getenv('DB_HOST', '')
+        DB_PORT = os.getenv('DB_PORT', '6543')
+        sslmode = 'require'
 else:
-    DB_HOST = os.getenv('DB_HOST', 'db.fhikehkuookglfjomxen.supabase.co')
+    # Use individual environment variables or hard-coded pooler values
+    # Transaction Pooler connection (IPv4 compatible)
+    DB_NAME = os.getenv('DB_NAME', 'postgres')
+    DB_USER = os.getenv('DB_USER', 'postgres.fhikehkuookglfjomxen')  # Pooler format: postgres.PROJECT_REF
+    DB_PASS = os.getenv('DB_PASS', 'i52hd1FMm3mnwJVX')
+    DB_HOST = os.getenv('DB_HOST', 'aws-1-ap-southeast-2.pooler.supabase.com')  # Pooler host
+    DB_PORT = os.getenv('DB_PORT', '6543')  # Pooler port
+    sslmode = 'require'
 
-DB_NAME = os.getenv('DB_NAME', 'postgres')
-DB_USER = os.getenv('DB_USER', 'postgres')
-DB_PASS = os.getenv('DB_PASS', 'i52hd1FMm3mnwJVX')
-DB_PORT = os.getenv('DB_PORT', '5432')
+# Log database configuration (without password)
+logger.info(f"[DB CONFIG] Using Supabase Transaction Pooler (IPv4 compatible)")
+logger.info(f"[DB CONFIG] DB_NAME: {DB_NAME}")
+logger.info(f"[DB CONFIG] DB_USER: {DB_USER}")
+logger.info(f"[DB CONFIG] DB_HOST: {DB_HOST}")
+logger.info(f"[DB CONFIG] DB_PORT: {DB_PORT}")
+logger.info(f"[DB CONFIG] DB_PASS: {'*' * len(DB_PASS) if DB_PASS else 'NOT SET'} (length: {len(DB_PASS) if DB_PASS else 0})")
+logger.info(f"[DB CONFIG] SSL Mode: {sslmode}")
 
-# Keep PostgreSQL connection for Django admin, migrations, etc.
-# But primary data operations will use Supabase Client SDK
+# Configure PostgreSQL connection with Transaction Pooler
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -137,14 +150,14 @@ DATABASES = {
         'HOST': DB_HOST,
         'PORT': DB_PORT,
         'OPTIONS': {
-            'sslmode': 'require',
-            'connect_timeout': 10,
+            'sslmode': sslmode,  # Supabase requires SSL
+            'connect_timeout': 10,  # 10 second timeout
         },
-        'CONN_MAX_AGE': 600,
+        'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
     }
 }
 
-logger.info(f"[DB CONFIG] PostgreSQL connection configured (for migrations/admin): {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+logger.info(f"[DB CONFIG] Database configured: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (SSL: {sslmode})")
 
 
 # Password validation
