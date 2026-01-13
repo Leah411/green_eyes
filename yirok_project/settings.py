@@ -23,20 +23,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-4neg@ylhj(joq+-p45#%(5^4427^icvur**+1b3rz+(+#4g85)')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
-if not SECRET_KEY:
-    if DEBUG:
-        # Only allow missing SECRET_KEY in DEBUG mode for development
-        from django.core.management.utils import get_random_secret_key
-        SECRET_KEY = get_random_secret_key()
-        import warnings
-        warnings.warn('SECRET_KEY not set! Generated a temporary key for development. Set SECRET_KEY in .env for production!')
-    else:
-        raise ValueError('SECRET_KEY environment variable must be set in production!')
 
 ALLOWED_HOSTS = ['*'] if os.getenv('ALLOWED_HOSTS') == '*' else (os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else [])
 
@@ -94,22 +85,37 @@ AUTH_USER_MODEL = 'core.User'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-if os.getenv('DB_USE_SQLITE', 'false').lower() == 'true':
+# Get database configuration from environment variables
+DB_NAME = os.getenv('DB_NAME')
+DB_USER = os.getenv('DB_USER')
+DB_PASS = os.getenv('DB_PASS')
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT', '5432')
+
+# Use PostgreSQL if all required variables are set, otherwise fallback to SQLite (local dev only)
+if all([DB_NAME, DB_USER, DB_PASS, DB_HOST]):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASS,
+            'HOST': DB_HOST,
+            'PORT': DB_PORT,
+        }
+    }
+else:
+    # Fallback to SQLite only if database variables are not set (local development)
+    # In production, this should never happen - all DB variables must be set
+    if not DEBUG:
+        raise ValueError(
+            "Missing required database environment variables in production. "
+            "Please set: DB_NAME, DB_USER, DB_PASS, DB_HOST, DB_PORT"
+        )
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME'),
-            'USER': os.getenv('DB_USER'),
-            'PASSWORD': os.getenv('DB_PASS'),
-            'HOST': os.getenv('DB_HOST'),
-            'PORT': os.getenv('DB_PORT'),
         }
     }
 
@@ -157,7 +163,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email Configuration
-# Use SMTP if EMAIL_BACKEND is explicitly set, otherwise use console for local development
+# Use console backend in development if EMAIL_BACKEND is not set
 EMAIL_BACKEND = os.getenv(
     'EMAIL_BACKEND',
     'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
