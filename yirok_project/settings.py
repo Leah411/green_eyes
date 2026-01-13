@@ -91,7 +91,7 @@ DB_NAME = 'postgres'  # Hard-coded for testing
 DB_USER = 'postgres'  # Hard-coded for testing
 DB_PASS = 'i52hd1FMm3mnwJVX'  # Hard-coded for testing
 DB_HOST = 'db.fhikehkuookglfjomxen.supabase.co'  # Hard-coded for testing
-DB_PORT = '6543'  # Hard-coded for testing (Connection Pooler)
+DB_PORT = '5432'  # Hard-coded for testing (Direct connection)
 
 # Log hard-coded values for debugging
 import logging
