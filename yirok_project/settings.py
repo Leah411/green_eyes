@@ -263,13 +263,23 @@ SIMPLE_JWT = {
 }
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = os.getenv(
-    'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://127.0.0.1:3000'
-).split(',') if os.getenv('CORS_ALLOWED_ORIGINS') else [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
+# Allow frontend to access API
+cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
+if cors_origins_env:
+    # Split by comma and strip whitespace
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
+else:
+    # Default to localhost for development
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ]
+
+# Also allow any origin in development (for testing)
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
@@ -280,6 +290,21 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Log CORS configuration
+logger.info(f"[CORS CONFIG] Allowed origins: {CORS_ALLOWED_ORIGINS}")
+logger.info(f"[CORS CONFIG] Allow all origins (DEBUG mode): {CORS_ALLOW_ALL_ORIGINS if DEBUG else False}")
 
 # Security Settings
 if not DEBUG:

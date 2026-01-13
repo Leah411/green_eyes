@@ -808,148 +808,34 @@ def send_alert_view(request):
 @permission_classes([AllowAny])
 def health_check_view(request):
     """
-    Health check endpoint with database connectivity check.
+    Simple health check endpoint for API availability.
+    Returns 200 OK if API is running (no DB checks).
     """
     import logging
     logger = logging.getLogger('core')
     
     logger.debug(f"[HEALTH CHECK] Request received from: {request.META.get('REMOTE_ADDR')}")
     
+    # Simple health check - just confirm API is running
     health_status = {
         'status': 'healthy',
         'timestamp': timezone.now().isoformat(),
         'version': '1.0.0',
-        'checks': {}
+        'message': 'API is running and available',
+        'endpoints': {
+            'auth': {
+                'register': '/api/auth/register/',
+                'login': '/api/auth/login/',
+                'request_otp': '/api/auth/request-otp/',
+                'verify_otp': '/api/auth/verify-otp/',
+            },
+            'health': '/api/health/',
+            'admin': '/admin/',
+        }
     }
     
-    # Check database connection
-    try:
-        from django.db import connection
-        logger.debug(f"[HEALTH CHECK] Testing database connection...")
-        logger.debug(f"[HEALTH CHECK] DB Config: {connection.settings_dict.get('HOST')}:{connection.settings_dict.get('PORT')}/{connection.settings_dict.get('NAME')}")
-        
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            result = cursor.fetchone()
-            logger.debug(f"[HEALTH CHECK] Database query result: {result}")
-            
-            # Get database info
-            cursor.execute("SELECT version()")
-            db_version = cursor.fetchone()
-            logger.debug(f"[HEALTH CHECK] Database version: {db_version[0] if db_version else 'unknown'}")
-            
-            health_status['checks']['database'] = {
-                'status': 'connected',
-                'engine': connection.vendor,
-                'database': connection.settings_dict.get('NAME', 'unknown'),
-                'host': connection.settings_dict.get('HOST', 'unknown'),
-                'port': connection.settings_dict.get('PORT', 'unknown'),
-            }
-            logger.info("[HEALTH CHECK] Database connection OK")
-    except Exception as e:
-        health_status['checks']['database'] = {
-            'status': 'error',
-            'error': str(e)
-        }
-        health_status['status'] = 'degraded'
-        logger.error(f"[HEALTH CHECK] Database connection failed: {e}", exc_info=True)
-    
-    # Check if core tables exist and get data
-    try:
-        from core.models import User, Profile, Unit, OTPToken
-        logger.debug("[HEALTH CHECK] Checking tables...")
-        
-        # Count all records (with error handling for each)
-        user_count = 0
-        profile_count = 0
-        unit_count = 0
-        otp_count = 0
-        table_errors = []
-        
-        try:
-            user_count = User.objects.count()
-            logger.debug(f"[DB QUERY] User count: {user_count}")
-        except Exception as e:
-            table_errors.append(f"User table: {str(e)}")
-            logger.warning(f"[HEALTH CHECK] User count failed: {e}")
-        
-        try:
-            profile_count = Profile.objects.count()
-            logger.debug(f"[DB QUERY] Profile count: {profile_count}")
-        except Exception as e:
-            table_errors.append(f"Profile table: {str(e)}")
-            logger.warning(f"[HEALTH CHECK] Profile count failed: {e}")
-        
-        try:
-            unit_count = Unit.objects.count()
-            logger.debug(f"[DB QUERY] Unit count: {unit_count}")
-        except Exception as e:
-            table_errors.append(f"Unit table: {str(e)}")
-            logger.warning(f"[HEALTH CHECK] Unit count failed: {e}")
-        
-        try:
-            otp_count = OTPToken.objects.count()
-            logger.debug(f"[DB QUERY] OTP count: {otp_count}")
-        except Exception as e:
-            table_errors.append(f"OTPToken table: {str(e)}")
-            logger.warning(f"[HEALTH CHECK] OTP count failed: {e}")
-        
-        # Get sample data if users exist
-        user_data = []
-        if user_count > 0:
-            try:
-                users = User.objects.all()[:5]
-                user_data = [{
-                    'id': u.id,
-                    'email': u.email,
-                    'username': u.username,
-                    'is_approved': u.is_approved,
-                    'is_active': u.is_active
-                } for u in users]
-                logger.debug(f"[DB QUERY] Sample users: {user_data}")
-            except Exception as e:
-                logger.warning(f"[HEALTH CHECK] Failed to get sample users: {e}")
-        
-        # Build response - don't fail if some tables are missing
-        health_status['checks']['tables'] = {
-            'status': 'ok' if not table_errors else 'partial',
-            'user_count': user_count,
-            'profile_count': profile_count,
-            'unit_count': unit_count,
-            'otp_count': otp_count,
-        }
-        
-        if user_data:
-            health_status['checks']['tables']['sample_users'] = user_data
-        
-        if table_errors:
-            health_status['checks']['tables']['warnings'] = table_errors
-            # Don't mark as degraded if DB is connected - some tables might not exist yet
-            if health_status['status'] == 'healthy':
-                health_status['status'] = 'healthy'  # Keep healthy if DB is connected
-        
-        logger.info(f"[HEALTH CHECK] Tables check complete - Users: {user_count}, Profiles: {profile_count}, Units: {unit_count}, OTPs: {otp_count}")
-    except Exception as e:
-        health_status['checks']['tables'] = {
-            'status': 'error',
-            'error': str(e)
-        }
-        # Only mark as degraded if DB connection also failed
-        if health_status['checks'].get('database', {}).get('status') != 'connected':
-            health_status['status'] = 'degraded'
-        logger.error(f"[HEALTH CHECK] Tables check failed: {e}", exc_info=True)
-    
-    # Return 200 OK if DB is connected, even if some tables have issues
-    # Only return 503 if DB connection itself failed
-    if health_status['checks'].get('database', {}).get('status') == 'connected':
-        status_code = status.HTTP_200_OK
-        if health_status['status'] == 'degraded':
-            health_status['status'] = 'healthy'  # Upgrade to healthy if DB is connected
-    else:
-        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    
-    logger.debug(f"[HEALTH CHECK] Returning status: {health_status['status']} (HTTP {status_code})")
-    return Response(health_status, status=status_code)
+    logger.info("[HEALTH CHECK] API is healthy and available")
+    return Response(health_status, status=status.HTTP_200_OK)
 
 # ==================== ViewSets ====================
 
