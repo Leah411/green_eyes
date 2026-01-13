@@ -85,50 +85,42 @@ AUTH_USER_MODEL = 'core.User'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Get database configuration from environment variables
-DB_NAME = os.getenv('DB_NAME')
-DB_USER = os.getenv('DB_USER')
-DB_PASS = os.getenv('DB_PASS')
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT', '5432')
+# TEMPORARY: Hard-coded database parameters for testing connection
+# TODO: Revert to environment variables after testing
+DB_NAME = 'postgres'  # Hard-coded for testing
+DB_USER = 'postgres'  # Hard-coded for testing
+DB_PASS = 'i52hd1FMm3mnwJVX'  # Hard-coded for testing
+DB_HOST = 'db.fhikehkuookglfjomxen.supabase.co'  # Hard-coded for testing
+DB_PORT = '6543'  # Hard-coded for testing (Connection Pooler)
 
-# Use PostgreSQL if all required variables are set, otherwise fallback to SQLite (local dev only)
-if all([DB_NAME, DB_USER, DB_PASS, DB_HOST]):
-    # Supabase requires SSL connections
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': DB_NAME,
-            'USER': DB_USER,
-            'PASSWORD': DB_PASS,
-            'HOST': DB_HOST,
-            'PORT': DB_PORT,
-            'OPTIONS': {
-                'sslmode': 'require',  # Supabase requires SSL
-                'connect_timeout': 10,  # 10 second timeout
-            },
-            'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
-        }
+# Log hard-coded values for debugging
+import logging
+logger = logging.getLogger('django')
+logger.info(f"[DB CONFIG] Using HARD-CODED values (testing mode)")
+logger.info(f"[DB CONFIG] DB_NAME: {DB_NAME}")
+logger.info(f"[DB CONFIG] DB_USER: {DB_USER}")
+logger.info(f"[DB CONFIG] DB_HOST: {DB_HOST}")
+logger.info(f"[DB CONFIG] DB_PORT: {DB_PORT}")
+logger.info(f"[DB CONFIG] DB_PASS: {'*' * len(DB_PASS)} (length: {len(DB_PASS)})")
+
+# Use PostgreSQL with hard-coded values
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASS,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
+        'OPTIONS': {
+            'sslmode': 'require',  # Supabase requires SSL
+            'connect_timeout': 10,  # 10 second timeout
+        },
+        'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
     }
-    
-    # Log database configuration (without password)
-    import logging
-    logger = logging.getLogger('django')
-    logger.info(f"Database configured: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (SSL required)")
-else:
-    # Fallback to SQLite only if database variables are not set (local development)
-    # In production, this should never happen - all DB variables must be set
-    if not DEBUG:
-        raise ValueError(
-            "Missing required database environment variables in production. "
-            "Please set: DB_NAME, DB_USER, DB_PASS, DB_HOST, DB_PORT"
-        )
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
+
+logger.info(f"[DB CONFIG] Database configured: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (SSL required)")
 
 
 # Password validation
