@@ -199,17 +199,32 @@ def request_otp_view(request):
     import logging
     logger = logging.getLogger('core')
     
-    logger.info(f"OTP request received: {request.data}")
+    logger.debug(f"[OTP REQUEST] Received: {request.data}")
+    logger.debug(f"[OTP REQUEST] Headers: {dict(request.headers)}")
     
     serializer = OTPSerializer(data=request.data)
     if not serializer.is_valid():
-        logger.warning(f"OTP request validation failed: {serializer.errors}")
+        logger.warning(f"[OTP REQUEST] Validation failed: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     email = serializer.validated_data['email']
+    logger.debug(f"[OTP REQUEST] Looking for user with email: {email}")
+    
+    # Log all users in database for debugging
+    try:
+        all_users = User.objects.all()
+        user_count = all_users.count()
+        logger.debug(f"[DB QUERY] Total users in database: {user_count}")
+        if user_count > 0:
+            logger.debug(f"[DB QUERY] User emails in DB: {[u.email for u in all_users[:10]]}")
+    except Exception as e:
+        logger.error(f"[DB QUERY] Error fetching all users: {e}")
+    
     try:
         user = User.objects.get(email=email)
+        logger.debug(f"[DB QUERY] User found: {user.email}, ID: {user.id}, Approved: {user.is_approved}")
     except User.DoesNotExist:
+        logger.warning(f"[DB QUERY] User not found with email: {email}")
         return Response({
             'error': 'User with this email does not exist.'
         }, status=status.HTTP_404_NOT_FOUND)
@@ -798,6 +813,8 @@ def health_check_view(request):
     import logging
     logger = logging.getLogger('core')
     
+    logger.debug(f"[HEALTH CHECK] Request received from: {request.META.get('REMOTE_ADDR')}")
+    
     health_status = {
         'status': 'healthy',
         'timestamp': timezone.now().isoformat(),
@@ -808,41 +825,91 @@ def health_check_view(request):
     # Check database connection
     try:
         from django.db import connection
+        logger.debug(f"[HEALTH CHECK] Testing database connection...")
+        logger.debug(f"[HEALTH CHECK] DB Config: {connection.settings_dict.get('HOST')}:{connection.settings_dict.get('PORT')}/{connection.settings_dict.get('NAME')}")
+        
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             result = cursor.fetchone()
+            logger.debug(f"[HEALTH CHECK] Database query result: {result}")
+            
+            # Get database info
+            cursor.execute("SELECT version()")
+            db_version = cursor.fetchone()
+            logger.debug(f"[HEALTH CHECK] Database version: {db_version[0] if db_version else 'unknown'}")
+            
             health_status['checks']['database'] = {
                 'status': 'connected',
                 'engine': connection.vendor,
-                'database': connection.settings_dict.get('NAME', 'unknown')
+                'database': connection.settings_dict.get('NAME', 'unknown'),
+                'host': connection.settings_dict.get('HOST', 'unknown'),
+                'port': connection.settings_dict.get('PORT', 'unknown'),
             }
-            logger.info("Health check: Database connection OK")
+            logger.info("[HEALTH CHECK] Database connection OK")
     except Exception as e:
         health_status['checks']['database'] = {
             'status': 'error',
             'error': str(e)
         }
         health_status['status'] = 'degraded'
-        logger.error(f"Health check: Database connection failed: {e}")
+        logger.error(f"[HEALTH CHECK] Database connection failed: {e}", exc_info=True)
     
-    # Check if core tables exist
+    # Check if core tables exist and get data
     try:
-        from core.models import User
+        from core.models import User, Profile, Unit, OTPToken
+        logger.debug("[HEALTH CHECK] Checking tables...")
+        
+        # Count all records
         user_count = User.objects.count()
-        health_status['checks']['tables'] = {
-            'status': 'ok',
-            'user_count': user_count
-        }
-        logger.info(f"Health check: Tables OK, {user_count} users found")
+        profile_count = Profile.objects.count()
+        unit_count = Unit.objects.count()
+        otp_count = OTPToken.objects.count()
+        
+        logger.debug(f"[DB QUERY] User count: {user_count}")
+        logger.debug(f"[DB QUERY] Profile count: {profile_count}")
+        logger.debug(f"[DB QUERY] Unit count: {unit_count}")
+        logger.debug(f"[DB QUERY] OTP count: {otp_count}")
+        
+        # Get sample data
+        if user_count > 0:
+            users = User.objects.all()[:5]
+            user_data = [{
+                'id': u.id,
+                'email': u.email,
+                'username': u.username,
+                'is_approved': u.is_approved,
+                'is_active': u.is_active
+            } for u in users]
+            logger.debug(f"[DB QUERY] Sample users: {user_data}")
+            health_status['checks']['tables'] = {
+                'status': 'ok',
+                'user_count': user_count,
+                'profile_count': profile_count,
+                'unit_count': unit_count,
+                'otp_count': otp_count,
+                'sample_users': user_data
+            }
+        else:
+            health_status['checks']['tables'] = {
+                'status': 'ok',
+                'user_count': 0,
+                'profile_count': profile_count,
+                'unit_count': unit_count,
+                'otp_count': otp_count,
+                'message': 'No users in database'
+            }
+        
+        logger.info(f"[HEALTH CHECK] Tables OK - Users: {user_count}, Profiles: {profile_count}, Units: {unit_count}, OTPs: {otp_count}")
     except Exception as e:
         health_status['checks']['tables'] = {
             'status': 'error',
             'error': str(e)
         }
         health_status['status'] = 'degraded'
-        logger.error(f"Health check: Tables check failed: {e}")
+        logger.error(f"[HEALTH CHECK] Tables check failed: {e}", exc_info=True)
     
     status_code = status.HTTP_200_OK if health_status['status'] == 'healthy' else status.HTTP_503_SERVICE_UNAVAILABLE
+    logger.debug(f"[HEALTH CHECK] Returning status: {health_status['status']}")
     return Response(health_status, status=status_code)
 
 # ==================== ViewSets ====================
