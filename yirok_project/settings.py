@@ -87,12 +87,19 @@ AUTH_USER_MODEL = 'core.User'
 
 # Supabase Transaction Pooler (PgBouncer) Configuration
 # Using pooler to avoid IPv6 issues on Render
-# Format: postgresql://postgres.PROJECT_REF:<PASSWORD>@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require
+# Pool Mode: Transaction
+# Connection parameters:
+#   host: aws-1-ap-southeast-2.pooler.supabase.com
+#   port: 6543
+#   database: postgres
+#   user: postgres.fhikehkuookglfjomxen
+#   pool_mode: transaction
 
 import logging
 logger = logging.getLogger('django')
 
 # Support both DATABASE_URL and individual environment variables
+# Environment variable names can be lowercase (as in user's example) or uppercase
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 if DATABASE_URL:
@@ -102,10 +109,10 @@ if DATABASE_URL:
     try:
         parsed = urllib.parse.urlparse(DATABASE_URL)
         DB_NAME = parsed.path[1:] if parsed.path else 'postgres'  # Remove leading /
-        DB_USER = parsed.username or 'postgres'
+        DB_USER = parsed.username or 'postgres.fhikehkuookglfjomxen'
         DB_PASS = parsed.password or ''
-        DB_HOST = parsed.hostname or ''
-        DB_PORT = parsed.port or '6543'
+        DB_HOST = parsed.hostname or 'aws-1-ap-southeast-2.pooler.supabase.com'
+        DB_PORT = str(parsed.port) if parsed.port else '6543'
         
         # Parse query parameters for sslmode
         query_params = urllib.parse.parse_qs(parsed.query)
@@ -115,30 +122,31 @@ if DATABASE_URL:
     except Exception as e:
         logger.error(f"[DB CONFIG] Failed to parse DATABASE_URL: {e}")
         # Fallback to individual variables
-        DB_NAME = os.getenv('DB_NAME', 'postgres')
-        DB_USER = os.getenv('DB_USER', 'postgres')
-        DB_PASS = os.getenv('DB_PASS', '')
-        DB_HOST = os.getenv('DB_HOST', '')
-        DB_PORT = os.getenv('DB_PORT', '6543')
+        DB_NAME = os.getenv('DB_NAME') or os.getenv('dbname', 'postgres')
+        DB_USER = os.getenv('DB_USER') or os.getenv('user', 'postgres.fhikehkuookglfjomxen')
+        DB_PASS = os.getenv('DB_PASS') or os.getenv('password', '')
+        DB_HOST = os.getenv('DB_HOST') or os.getenv('host', 'aws-1-ap-southeast-2.pooler.supabase.com')
+        DB_PORT = os.getenv('DB_PORT') or os.getenv('port', '6543')
         sslmode = 'require'
 else:
-    # Use individual environment variables or hard-coded pooler values
-    # Transaction Pooler connection (IPv4 compatible)
-    DB_NAME = os.getenv('DB_NAME', 'postgres')
-    DB_USER = os.getenv('DB_USER', 'postgres.fhikehkuookglfjomxen')  # Pooler format: postgres.PROJECT_REF
-    DB_PASS = os.getenv('DB_PASS', 'i52hd1FMm3mnwJVX')
-    DB_HOST = os.getenv('DB_HOST', 'aws-1-ap-southeast-2.pooler.supabase.com')  # Pooler host
-    DB_PORT = os.getenv('DB_PORT', '6543')  # Pooler port
+    # Use individual environment variables (support both uppercase and lowercase)
+    # Default to Transaction Pooler values
+    DB_NAME = os.getenv('DB_NAME') or os.getenv('dbname', 'postgres')
+    DB_USER = os.getenv('DB_USER') or os.getenv('user', 'postgres.fhikehkuookglfjomxen')
+    DB_PASS = os.getenv('DB_PASS') or os.getenv('password', 'i52hd1FMm3mnwJVX')
+    DB_HOST = os.getenv('DB_HOST') or os.getenv('host', 'aws-1-ap-southeast-2.pooler.supabase.com')
+    DB_PORT = os.getenv('DB_PORT') or os.getenv('port', '6543')
     sslmode = 'require'
 
 # Log database configuration (without password)
-logger.info(f"[DB CONFIG] Using Supabase Transaction Pooler (IPv4 compatible)")
-logger.info(f"[DB CONFIG] DB_NAME: {DB_NAME}")
-logger.info(f"[DB CONFIG] DB_USER: {DB_USER}")
-logger.info(f"[DB CONFIG] DB_HOST: {DB_HOST}")
-logger.info(f"[DB CONFIG] DB_PORT: {DB_PORT}")
-logger.info(f"[DB CONFIG] DB_PASS: {'*' * len(DB_PASS) if DB_PASS else 'NOT SET'} (length: {len(DB_PASS) if DB_PASS else 0})")
+logger.info(f"[DB CONFIG] Using Supabase Transaction Pooler (IPv4 compatible, pool_mode: transaction)")
+logger.info(f"[DB CONFIG] DB_NAME (database): {DB_NAME}")
+logger.info(f"[DB CONFIG] DB_USER (user): {DB_USER}")
+logger.info(f"[DB CONFIG] DB_HOST (host): {DB_HOST}")
+logger.info(f"[DB CONFIG] DB_PORT (port): {DB_PORT}")
+logger.info(f"[DB CONFIG] DB_PASS (password): {'*' * len(DB_PASS) if DB_PASS else 'NOT SET'} (length: {len(DB_PASS) if DB_PASS else 0})")
 logger.info(f"[DB CONFIG] SSL Mode: {sslmode}")
+logger.info(f"[DB CONFIG] Pool Mode: transaction")
 
 # Configure PostgreSQL connection with Transaction Pooler
 DATABASES = {
@@ -157,7 +165,7 @@ DATABASES = {
     }
 }
 
-logger.info(f"[DB CONFIG] Database configured: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (SSL: {sslmode})")
+logger.info(f"[DB CONFIG] Database configured: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (SSL: {sslmode}, Pool: transaction)")
 
 
 # Password validation
