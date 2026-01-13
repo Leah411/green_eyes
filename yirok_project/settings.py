@@ -108,10 +108,10 @@ if DATABASE_URL:
     import urllib.parse
     try:
         parsed = urllib.parse.urlparse(DATABASE_URL)
-        DB_NAME = parsed.path[1:] if parsed.path else 'postgres'  # Remove leading /
-        DB_USER = parsed.username or 'postgres.fhikehkuookglfjomxen'
-        DB_PASS = parsed.password or ''
-        DB_HOST = parsed.hostname or 'aws-1-ap-southeast-2.pooler.supabase.com'
+        DB_NAME = parsed.path[1:] if parsed.path else 'postgres'
+        DB_USER = parsed.username
+        DB_PASS = parsed.password
+        DB_HOST = parsed.hostname
         DB_PORT = str(parsed.port) if parsed.port else '6543'
         
         # Parse query parameters for sslmode
@@ -119,24 +119,42 @@ if DATABASE_URL:
         sslmode = query_params.get('sslmode', ['require'])[0]
         
         logger.info(f"[DB CONFIG] Using DATABASE_URL from environment")
+        
+        # Validate all required fields from DATABASE_URL
+        if not all([DB_NAME, DB_USER, DB_PASS, DB_HOST]):
+            raise ValueError("DATABASE_URL is missing required components (user, password, or host)")
+            
     except Exception as e:
         logger.error(f"[DB CONFIG] Failed to parse DATABASE_URL: {e}")
-        # Fallback to individual variables
-        DB_NAME = os.getenv('DB_NAME') or os.getenv('dbname', 'postgres')
-        DB_USER = os.getenv('DB_USER') or os.getenv('user', 'postgres.fhikehkuookglfjomxen')
-        DB_PASS = os.getenv('DB_PASS') or os.getenv('password', '')
-        DB_HOST = os.getenv('DB_HOST') or os.getenv('host', 'aws-1-ap-southeast-2.pooler.supabase.com')
-        DB_PORT = os.getenv('DB_PORT') or os.getenv('port', '6543')
-        sslmode = 'require'
+        raise ValueError(f"Invalid DATABASE_URL format: {e}")
 else:
     # Use individual environment variables (support both uppercase and lowercase)
-    # Default to Transaction Pooler values
-    DB_NAME = os.getenv('DB_NAME') or os.getenv('dbname', 'postgres')
-    DB_USER = os.getenv('DB_USER') or os.getenv('user', 'postgres.fhikehkuookglfjomxen')
-    DB_PASS = os.getenv('DB_PASS') or os.getenv('password', 'BnDgPKyYpjHCx9vy')  # Updated password
-    DB_HOST = os.getenv('DB_HOST') or os.getenv('host', 'aws-1-ap-southeast-2.pooler.supabase.com')
-    DB_PORT = os.getenv('DB_PORT') or os.getenv('port', '6543')
+    # Try uppercase first, then lowercase
+    DB_NAME = os.getenv('DB_NAME') or os.getenv('dbname')
+    DB_USER = os.getenv('DB_USER') or os.getenv('user')
+    DB_PASS = os.getenv('DB_PASS') or os.getenv('password')
+    DB_HOST = os.getenv('DB_HOST') or os.getenv('host')
+    DB_PORT = os.getenv('DB_PORT') or os.getenv('port') or '6543'
     sslmode = 'require'
+    
+    # Log which environment variable names are being used
+    db_name_source = 'DB_NAME' if os.getenv('DB_NAME') else ('dbname' if os.getenv('dbname') else 'NOT SET')
+    db_user_source = 'DB_USER' if os.getenv('DB_USER') else ('user' if os.getenv('user') else 'NOT SET')
+    db_pass_source = 'DB_PASS' if os.getenv('DB_PASS') else ('password' if os.getenv('password') else 'NOT SET')
+    db_host_source = 'DB_HOST' if os.getenv('DB_HOST') else ('host' if os.getenv('host') else 'NOT SET')
+    db_port_source = 'DB_PORT' if os.getenv('DB_PORT') else ('port' if os.getenv('port') else 'default')
+    
+    logger.info(f"[DB CONFIG] Reading from env vars: {db_name_source}, {db_user_source}, {db_pass_source}, {db_host_source}, {db_port_source}")
+    
+    # Validate required credentials are set
+    if not DB_NAME:
+        raise ValueError("Database name not set. Please set DB_NAME or dbname environment variable.")
+    if not DB_USER:
+        raise ValueError("Database user not set. Please set DB_USER or user environment variable.")
+    if not DB_PASS:
+        raise ValueError("Database password not set. Please set DB_PASS or password environment variable.")
+    if not DB_HOST:
+        raise ValueError("Database host not set. Please set DB_HOST or host environment variable.")
 
 # Log database configuration (without password)
 logger.info(f"[DB CONFIG] Using Supabase Transaction Pooler (IPv4 compatible, pool_mode: transaction)")
@@ -147,6 +165,10 @@ logger.info(f"[DB CONFIG] DB_PORT (port): {DB_PORT}")
 logger.info(f"[DB CONFIG] DB_PASS (password): {'*' * len(DB_PASS) if DB_PASS else 'NOT SET'} (length: {len(DB_PASS) if DB_PASS else 0})")
 logger.info(f"[DB CONFIG] SSL Mode: {sslmode}")
 logger.info(f"[DB CONFIG] Pool Mode: transaction")
+
+# Validate password format (should be 16 characters for Supabase)
+if DB_PASS and len(DB_PASS) != 16:
+    logger.warning(f"[DB CONFIG] WARNING: Password length is {len(DB_PASS)}, expected 16 for Supabase. Check for extra spaces or incorrect password.")
 
 # Configure PostgreSQL connection with Transaction Pooler
 DATABASES = {
