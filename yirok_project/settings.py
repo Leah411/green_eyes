@@ -104,6 +104,10 @@ logger.info(f"[DB CONFIG] DB_PORT: {DB_PORT}")
 logger.info(f"[DB CONFIG] DB_PASS: {'*' * len(DB_PASS)} (length: {len(DB_PASS)})")
 
 # Use PostgreSQL with hard-coded values
+# Try to force IPv4 connection (Supabase IPv6 might not be reachable from Render)
+# Note: The IPv6 error suggests Render can't reach Supabase via IPv6
+# We'll try using the pooler connection string format or direct IPv4
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -119,6 +123,20 @@ DATABASES = {
         'CONN_MAX_AGE': 600,  # Reuse connections for 10 minutes
     }
 }
+
+# Try to resolve hostname to IPv4 explicitly
+# If IPv6 is not reachable, we need to use IPv4
+import socket
+try:
+    # Try to get IPv4 address
+    ipv4_address = socket.gethostbyname(DB_HOST)
+    logger.info(f"[DB CONFIG] Resolved {DB_HOST} to IPv4: {ipv4_address}")
+    # Use IP address instead of hostname to force IPv4
+    DATABASES['default']['HOST'] = ipv4_address
+    logger.info(f"[DB CONFIG] Using IP address instead of hostname to force IPv4")
+except socket.gaierror as e:
+    logger.warning(f"[DB CONFIG] Could not resolve hostname to IPv4: {e}")
+    logger.warning(f"[DB CONFIG] Will try with hostname (may fail with IPv6)")
 
 logger.info(f"[DB CONFIG] Database configured: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME} (SSL required)")
 
