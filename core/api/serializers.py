@@ -51,17 +51,23 @@ class ProfileSerializer(serializers.ModelSerializer):
     """Serializer for Profile model"""
     user_username = serializers.CharField(source='user.username', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
-    unit_name = serializers.CharField(source='unit.name', read_only=True)
+    user_first_name = serializers.CharField(source='user.first_name', read_only=True)
+    user_last_name = serializers.CharField(source='user.last_name', read_only=True)
+    user_phone = serializers.CharField(source='user.phone', read_only=True)
+    unit_name = serializers.CharField(source='unit.name', read_only=True, allow_null=True)
+    unit_name_he = serializers.CharField(source='unit.name_he', read_only=True, allow_null=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-    city_name = serializers.CharField(source='city.name', read_only=True)
-    city_name_he = serializers.CharField(source='city.name_he', read_only=True)
+    city_name = serializers.CharField(source='city.name', read_only=True, allow_null=True)
+    city_name_he = serializers.CharField(source='city.name_he', read_only=True, allow_null=True)
     
     class Meta:
         model = Profile
         fields = [
             'id', 'user', 'user_username', 'user_email',
-            'unit', 'unit_name', 'role', 'role_display',
+            'user_first_name', 'user_last_name', 'user_phone',
+            'unit', 'unit_name', 'unit_name_he', 'role', 'role_display',
             'id_number', 'address', 'city', 'city_name', 'city_name_he',
+            'contact_name', 'contact_phone',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -326,12 +332,29 @@ class AvailabilityReportSerializer(serializers.ModelSerializer):
 
 
 class AccessRequestSerializer(serializers.ModelSerializer):
-    """Serializer for AccessRequest"""
+    """Serializer for AccessRequest - includes all user and profile details for approval"""
+    # User fields from registration
     user_username = serializers.CharField(source='user.username', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
     user_first_name = serializers.CharField(source='user.first_name', read_only=True)
     user_last_name = serializers.CharField(source='user.last_name', read_only=True)
     user_phone = serializers.CharField(source='user.phone', read_only=True)
+    
+    # Profile fields from registration
+    profile_id_number = serializers.CharField(source='user.profile.id_number', read_only=True)
+    profile_address = serializers.CharField(source='user.profile.address', read_only=True)
+    profile_city_id = serializers.IntegerField(source='user.profile.city.id', read_only=True, allow_null=True)
+    profile_city_name = serializers.CharField(source='user.profile.city.name', read_only=True, allow_null=True)
+    profile_city_name_he = serializers.CharField(source='user.profile.city.name_he', read_only=True, allow_null=True)
+    profile_unit_id = serializers.IntegerField(source='user.profile.unit.id', read_only=True, allow_null=True)
+    profile_unit_name = serializers.CharField(source='user.profile.unit.name', read_only=True, allow_null=True)
+    profile_unit_name_he = serializers.CharField(source='user.profile.unit.name_he', read_only=True, allow_null=True)
+    profile_role = serializers.CharField(source='user.profile.role', read_only=True)
+    profile_role_display = serializers.CharField(source='user.profile.get_role_display', read_only=True)
+    profile_contact_name = serializers.CharField(source='user.profile.contact_name', read_only=True)
+    profile_contact_phone = serializers.CharField(source='user.profile.contact_phone', read_only=True)
+    
+    # Approval fields
     approved_by_username = serializers.CharField(source='approved_by.username', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     
@@ -340,6 +363,13 @@ class AccessRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_username', 'user_email',
             'user_first_name', 'user_last_name', 'user_phone',
+            # Profile fields
+            'profile_id_number', 'profile_address',
+            'profile_city_id', 'profile_city_name', 'profile_city_name_he',
+            'profile_unit_id', 'profile_unit_name', 'profile_unit_name_he',
+            'profile_role', 'profile_role_display',
+            'profile_contact_name', 'profile_contact_phone',
+            # Request fields
             'submitted_at', 'status', 'status_display',
             'approved_by', 'approved_by_username',
             'approved_at', 'rejection_reason'
