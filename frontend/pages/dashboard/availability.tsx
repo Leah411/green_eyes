@@ -86,8 +86,11 @@ export default function AvailabilityDashboard() {
       router.push('/');
       return;
     }
-    loadData();
-  }, [selectedUnit, selectedUnits, selectedBranches, selectedSections, selectedTeams]);
+    // Only load data if we have loaded units first
+    if (allUnits.length > 0) {
+      loadData();
+    }
+  }, [selectedUnit, selectedUnits, selectedBranches, selectedSections, selectedTeams, allUnits]);
 
   const loadAllUnits = async () => {
     try {
