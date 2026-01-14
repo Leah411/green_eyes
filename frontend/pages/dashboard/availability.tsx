@@ -185,13 +185,35 @@ export default function AvailabilityDashboard() {
       const usersRes = await api.listApprovedUsers();
       const allUsers = usersRes.data.results || usersRes.data || [];
       
-      // Build filter for reports based on selected units
-      const selectedUnitIds = [
-        ...Array.from(selectedUnits),
-        ...Array.from(selectedBranches),
-        ...Array.from(selectedSections),
-        ...Array.from(selectedTeams)
-      ];
+      // Build filter based on hierarchy (most specific/deepest level wins)
+      // Hierarchy: Team > Section > Branch > Unit
+      let selectedUnitIds: number[] = [];
+
+      if (selectedTeams.size > 0) {
+        // Most specific: show only users from selected teams (and their descendants if any)
+        selectedUnitIds = Array.from(selectedTeams);
+      } else if (selectedSections.size > 0) {
+        // Show users from selected sections + their descendant teams
+        selectedUnitIds = Array.from(selectedSections);
+      } else if (selectedBranches.size > 0) {
+        // Show users from selected branches + their descendant sections/teams
+        selectedUnitIds = Array.from(selectedBranches);
+      } else if (selectedUnits.size > 0) {
+        // Least specific: show users from selected units + all descendants
+        selectedUnitIds = Array.from(selectedUnits);
+      }
+
+      console.log('Filter hierarchy applied:', {
+        selectedTeams: selectedTeams.size,
+        selectedSections: selectedSections.size,
+        selectedBranches: selectedBranches.size,
+        selectedUnits: selectedUnits.size,
+        finalSelectedIds: selectedUnitIds,
+        reason: selectedTeams.size > 0 ? 'teams' : 
+                selectedSections.size > 0 ? 'sections' : 
+                selectedBranches.size > 0 ? 'branches' : 
+                selectedUnits.size > 0 ? 'units' : 'none'
+      });
       
       // Use old selectedUnit for backward compatibility, or new filter
       const unitFilter = selectedUnit || (selectedUnitIds.length > 0 ? selectedUnitIds[0].toString() : '');
@@ -221,7 +243,10 @@ export default function AvailabilityDashboard() {
         
         // Add all descendants of selected units (children, grandchildren, etc.)
         const addDescendants = (unitId: number) => {
-          const children = allUnits.filter(u => u.parent === unitId);
+          const children = allUnits.filter(u => {
+            const parentId = typeof u.parent === 'object' ? u.parent?.id : u.parent;
+            return parentId === unitId;
+          });
           children.forEach(child => {
             relevantUnitIds.add(child.id);
             addDescendants(child.id); // Recursively add descendants
