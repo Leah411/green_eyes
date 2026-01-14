@@ -622,18 +622,46 @@ export default function PermissionsDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה:</label>
-                    <select
-                      value={editingUnitId || ''}
-                      onChange={(e) => setEditingUnitId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                    >
-                      <option value="">ללא יחידה</option>
-                      {units.map((unit) => (
-                        <option key={unit.id} value={unit.id}>
-                          {unit.name_he || unit.name}
-                        </option>
-                      ))}
-                    </select>
+                    <p className="text-right bg-gray-50 p-2 rounded">
+                      {(() => {
+                        const unitId = selectedUser.profile?.unit;
+                        if (!unitId) return 'ללא יחידה';
+                        
+                        // Get unit ID (can be number or object)
+                        const actualUnitId = typeof unitId === 'object' ? unitId.id : unitId;
+                        if (!actualUnitId) return selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה';
+                        
+                        // Find unit in allUnits
+                        const unitObj = allUnits.find(u => u.id === actualUnitId);
+                        if (!unitObj) return selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה';
+                        
+                        // Build hierarchy path: unit > branch > section > team
+                        const getUnitPath = (unit: any): string[] => {
+                          const path: string[] = [];
+                          let current = unit;
+                          
+                          // Collect all ancestors
+                          while (current) {
+                            const name = current.name_he || current.name;
+                            path.unshift(name); // Add to beginning
+                            
+                            if (current.parent) {
+                              const parentId = typeof current.parent === 'object' 
+                                ? current.parent.id 
+                                : current.parent;
+                              current = allUnits.find(u => u.id === parentId);
+                            } else {
+                              current = null;
+                            }
+                          }
+                          
+                          return path;
+                        };
+                        
+                        const path = getUnitPath(unitObj);
+                        return path.length > 0 ? path.join(' > ') : (selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה');
+                      })()}
+                    </p>
                   </div>
                 </div>
               </div>
