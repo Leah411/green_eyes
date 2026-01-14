@@ -233,8 +233,8 @@ export default function Home() {
     setError('');
     setSuccess('');
 
-    // Validate required fields
-    if (!firstName || !lastName || !email || !phone || !idNumber) {
+    // Validate all required fields
+    if (!firstName || !lastName || !email || !phone || !idNumber || !address || !cityId || !contactName || !contactPhone) {
       setError('כל השדות המסומנים ב-* חייבים להיות ממולאים');
       setLoading(false);
       return;
@@ -243,9 +243,9 @@ export default function Home() {
     // Use the most specific unit selected (team > section > branch > unit)
     const finalUnitId = teamId || sectionId || branchId || unitId;
     
-    // Validate unit is selected
-    if (!finalUnitId) {
-      setError('יש לבחור יחידה');
+    // Validate unit hierarchy is fully selected
+    if (!finalUnitId || !unitId || !branchId || !sectionId || !teamId) {
+      setError('יש לבחור יחידה, ענף, מדור וצוות');
       setLoading(false);
       return;
     }
@@ -563,11 +563,12 @@ export default function Home() {
 
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                ענף
+                ענף <span className="text-red-500">*</span>
               </label>
               <select
                 value={branchId || ''}
                 onChange={handleBranchChange}
+                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
                 disabled={!unitId}
               >
@@ -582,11 +583,12 @@ export default function Home() {
 
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                מדור
+                מדור <span className="text-red-500">*</span>
               </label>
               <select
                 value={sectionId || ''}
                 onChange={handleSectionChange}
+                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
                 disabled={!branchId}
               >
@@ -601,11 +603,12 @@ export default function Home() {
 
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                צוות
+                צוות <span className="text-red-500">*</span>
               </label>
               <select
                 value={teamId || ''}
                 onChange={handleTeamChange}
+                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
                 disabled={!sectionId}
               >
@@ -620,7 +623,7 @@ export default function Home() {
 
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                כתובת מגורים
+                כתובת מגורים <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -636,6 +639,7 @@ export default function Home() {
                     setFieldErrors(newErrors);
                   }
                 }}
+                required
                 className={`w-full px-4 py-2 border rounded-lg text-right ${
                   fieldErrors.address ? 'border-red-500' : ''
                 }`}
@@ -648,7 +652,19 @@ export default function Home() {
 
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                שם איש קשר
+                עיר מגורים <span className="text-red-500">*</span>
+              </label>
+              <SearchableLocationSelect
+                value={cityId}
+                onChange={setCityId}
+                placeholder="חפש עיר או ישוב..."
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                שם איש קשר <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -664,6 +680,7 @@ export default function Home() {
                     setFieldErrors(newErrors);
                   }
                 }}
+                required
                 className={`w-full px-4 py-2 border rounded-lg text-right ${
                   fieldErrors.contactName ? 'border-red-500' : ''
                 }`}
@@ -676,7 +693,7 @@ export default function Home() {
 
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                טלפון איש קשר
+                טלפון איש קשר <span className="text-red-500">*</span>
               </label>
               <input
                 type="tel"
@@ -695,6 +712,7 @@ export default function Home() {
                     }
                   }
                 }}
+                required
                 className={`w-full px-4 py-2 border rounded-lg text-right ${
                   fieldErrors.contactPhone ? 'border-red-500' : ''
                 }`}
@@ -704,17 +722,6 @@ export default function Home() {
               {fieldErrors.contactPhone && (
                 <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.contactPhone}</p>
               )}
-            </div>
-
-            <div>
-              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                עיר מגורים
-              </label>
-              <SearchableLocationSelect
-                value={cityId}
-                onChange={setCityId}
-                placeholder="חפש עיר או ישוב..."
-              />
             </div>
             <div className="flex gap-4 justify-end pt-4">
               <button
