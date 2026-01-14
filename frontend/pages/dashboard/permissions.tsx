@@ -449,45 +449,45 @@ export default function PermissionsDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משתמש:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_username || selectedRequest.user?.username}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_username || selectedRequest.user?.username || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">אימייל:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_email || selectedRequest.user?.email}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_email || selectedRequest.user?.email || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם פרטי:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.first_name || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_first_name || selectedRequest.user?.first_name || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משפחה:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.last_name || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_last_name || selectedRequest.user?.last_name || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.phone || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_phone || selectedRequest.user?.phone || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">תעודת זהות:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.profile?.id_number || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.profile_id_number || selectedRequest.user?.profile?.id_number || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.profile?.address || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.profile_address || selectedRequest.user?.profile?.address || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">עיר:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">
-                    {selectedRequest.user?.profile?.city_name_he || selectedRequest.user?.profile?.city_name || selectedRequest.user?.profile?.city?.name_he || selectedRequest.user?.profile?.city?.name || '-'}
+                    {selectedRequest.profile_city_name_he || selectedRequest.profile_city_name || selectedRequest.user?.profile?.city_name_he || selectedRequest.user?.profile?.city_name || selectedRequest.user?.profile?.city?.name_he || selectedRequest.user?.profile?.city?.name || '-'}
                   </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם איש קשר:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.profile?.contact_name || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.profile_contact_name || selectedRequest.user?.profile?.contact_name || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון איש קשר:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user?.profile?.contact_phone || '-'}</p>
+                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.profile_contact_phone || selectedRequest.user?.profile?.contact_phone || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">תאריך בקשה:</label>
@@ -504,7 +504,7 @@ export default function PermissionsDashboard() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה נוכחית:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">
-                    {selectedRequest.user?.profile?.unit_name || selectedRequest.user?.profile?.unit?.name_he || selectedRequest.user?.profile?.unit?.name || '-'}
+                    {selectedRequest.profile_unit_name_he || selectedRequest.profile_unit_name || selectedRequest.user?.profile?.unit_name || selectedRequest.user?.profile?.unit?.name_he || selectedRequest.user?.profile?.unit?.name || '-'}
                   </p>
                 </div>
               </div>
