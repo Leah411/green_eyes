@@ -13,7 +13,6 @@ export default function Home() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [idNumber, setIdNumber] = useState('');
   const [unitId, setUnitId] = useState<number | null>(null);
   const [branchId, setBranchId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
@@ -234,7 +233,7 @@ export default function Home() {
     setSuccess('');
 
     // Validate all required fields
-    if (!firstName || !lastName || !email || !phone || !idNumber || !address || !cityId || !contactName || !contactPhone) {
+    if (!firstName || !lastName || !email || !phone || !address || !cityId || !contactName || !contactPhone) {
       setError('כל השדות המסומנים ב-* חייבים להיות ממולאים');
       setLoading(false);
       return;
@@ -257,7 +256,6 @@ export default function Home() {
         first_name: firstName,
         last_name: lastName,
         phone,
-        id_number: idNumber,
         unit_id: finalUnitId,
         address: address,
         city_id: cityId,
@@ -506,39 +504,6 @@ export default function Home() {
               />
               {fieldErrors.phone && (
                 <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.phone}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                תעודת זהות <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={idNumber}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, ''); // Only numbers
-                  if (value.length <= 9) {
-                    setIdNumber(value);
-                    // Validate 9 digits
-                    if (value.length > 0 && value.length !== 9) {
-                      setFieldErrors({...fieldErrors, idNumber: 'תעודת זהות חייבת להכיל 9 ספרות'});
-                    } else {
-                      const newErrors = {...fieldErrors};
-                      delete newErrors.idNumber;
-                      setFieldErrors(newErrors);
-                    }
-                  }
-                }}
-                required
-                className={`w-full px-4 py-2 border rounded-lg text-right ${
-                  fieldErrors.idNumber ? 'border-red-500' : ''
-                }`}
-                placeholder="הזן תעודת זהות"
-                maxLength={9}
-              />
-              {fieldErrors.idNumber && (
-                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.idNumber}</p>
               )}
             </div>
 

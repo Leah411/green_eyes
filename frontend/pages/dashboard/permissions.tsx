@@ -257,7 +257,6 @@ export default function PermissionsDashboard() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תעודת זהות</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">אימייל</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">טלפון</th>
@@ -268,7 +267,6 @@ export default function PermissionsDashboard() {
                   <tbody className="divide-y divide-gray-200">
                     {accessRequests.map((request) => (
                       <tr key={request.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-right">{request.user?.profile?.id_number || '-'}</td>
                         <td className="px-6 py-4 text-right">{request.user_email || request.user?.email}</td>
                         <td className="px-6 py-4 text-right">
                           {request.user?.first_name || ''} {request.user?.last_name || ''}
@@ -315,7 +313,6 @@ export default function PermissionsDashboard() {
                   if (!searchQuery.trim()) return true;
                   const query = searchQuery.toLowerCase();
                   const username = (user.username || '').toLowerCase();
-                  const idNumber = (user.profile?.id_number || '').toLowerCase();
                   const email = (user.email || '').toLowerCase();
                   const firstName = (user.first_name || '').toLowerCase();
                   const lastName = (user.last_name || '').toLowerCase();
@@ -325,7 +322,6 @@ export default function PermissionsDashboard() {
                   
                   return (
                     username.includes(query) ||
-                    idNumber.includes(query) ||
                     email.includes(query) ||
                     firstName.includes(query) ||
                     lastName.includes(query) ||
@@ -466,10 +462,6 @@ export default function PermissionsDashboard() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.user_phone || selectedRequest.user?.phone || '-'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">תעודת זהות:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedRequest.profile_id_number || selectedRequest.user?.profile?.id_number || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת:</label>

@@ -450,7 +450,7 @@ def approve_access_request_view(request, request_id):
     access_request.approve(request.user)
     
     # Get the user and profile (profile was already created during registration with all data)
-    # All registration data (user fields: first_name, last_name, phone, email, and profile fields: id_number, address, city, unit)
+    # All registration data (user fields: first_name, last_name, phone, email, and profile fields: address, city, unit)
     # is already saved in the database from the registration process
     user = access_request.user
     profile, created = Profile.objects.get_or_create(user=user)
@@ -473,8 +473,6 @@ def approve_access_request_view(request, request_id):
     
     # Admin can optionally update profile details during approval
     # If not provided, the registration data is preserved
-    if 'id_number' in request.data:
-        profile.id_number = request.data['id_number']
     if 'address' in request.data:
         profile.address = request.data['address']
     if 'city_id' in request.data:

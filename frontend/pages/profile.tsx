@@ -30,7 +30,6 @@ export default function ProfilePage() {
     last_name: '',
     email: '',
     phone: '',
-    id_number: '',
     unit_id: null as number | null,
     role: 'user',
     address: '',
@@ -75,7 +74,6 @@ export default function ProfilePage() {
         last_name: userData.last_name || '',
         email: userData.email || '',
         phone: userData.phone || '',
-        id_number: userData.profile?.id_number || '',
         unit_id: currentUnitId || null,
         role: userData.profile?.role || 'user',
         address: userData.profile?.address || '',
@@ -408,19 +406,6 @@ export default function ProfilePage() {
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              required
-              className="w-full px-4 py-2 border rounded-lg text-right"
-            />
-          </div>
-
-          <div>
-            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-              תעודת זהות <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.id_number}
-              onChange={(e) => setFormData({ ...formData, id_number: e.target.value })}
               required
               className="w-full px-4 py-2 border rounded-lg text-right"
             />

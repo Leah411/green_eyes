@@ -86,7 +86,6 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     unit = models.ForeignKey(Unit, null=True, blank=True, on_delete=models.SET_NULL, related_name='members')
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='user')
-    id_number = models.CharField(max_length=20, blank=True, help_text="National ID number")
     address = models.CharField(max_length=200, blank=True, help_text="כתובת מגורים")
     city = models.ForeignKey('Location', null=True, blank=True, on_delete=models.SET_NULL, related_name='residents', help_text="עיר מגורים")
     contact_name = models.CharField(max_length=100, blank=True, help_text="שם איש קשר")

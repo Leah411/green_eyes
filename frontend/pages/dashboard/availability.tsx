@@ -292,7 +292,6 @@ export default function AvailabilityDashboard() {
           first_name: user.first_name,
           last_name: user.last_name,
           phone: user.phone,
-          id_number: user.profile?.id_number,
           address: user.profile?.address,
           city: user.profile?.city_name_he || user.profile?.city_name,
           unit: user.profile?.unit ? {
@@ -992,7 +991,6 @@ export default function AvailabilityDashboard() {
                     </div>
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תעודת זהות</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">טלפון</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">כתובת</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">עיר</th>
@@ -1021,7 +1019,6 @@ export default function AvailabilityDashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right font-medium">{fullName}</td>
-                      <td className="px-6 py-4 text-right">{user.id_number || '-'}</td>
                       <td className="px-6 py-4 text-right">{user.phone || '-'}</td>
                       <td className="px-6 py-4 text-right">{user.address || '-'}</td>
                       <td className="px-6 py-4 text-right">{user.city || '-'}</td>

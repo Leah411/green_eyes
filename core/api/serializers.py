@@ -66,7 +66,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_username', 'user_email',
             'user_first_name', 'user_last_name', 'user_phone',
             'unit', 'unit_name', 'unit_name_he', 'role', 'role_display',
-            'id_number', 'address', 'city', 'city_name', 'city_name_he',
+            'address', 'city', 'city_name', 'city_name_he',
             'contact_name', 'contact_phone',
             'created_at', 'updated_at'
         ]
@@ -105,7 +105,6 @@ class UserSignupSerializer(serializers.ModelSerializer):
         label='Confirm Password',
         style={'input_type': 'password'}
     )
-    id_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
     unit_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     role = serializers.ChoiceField(
         choices=Profile.ROLE_CHOICES,
@@ -122,7 +121,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             'username', 'email', 'password', 'password2',
-            'first_name', 'last_name', 'phone', 'id_number', 'unit_id', 'role',
+            'first_name', 'last_name', 'phone', 'unit_id', 'role',
             'address', 'city_id', 'contact_name', 'contact_phone'
         )
         extra_kwargs = {
@@ -167,7 +166,6 @@ class UserSignupSerializer(serializers.ModelSerializer):
         # Get password (or generate one if not provided - for OTP-based systems)
         password = validated_data.pop('password', None)
         validated_data.pop('password2', None)
-        id_number = validated_data.pop('id_number', '')
         unit_id = validated_data.pop('unit_id', None)
         role = validated_data.pop('role', 'user')
         address = validated_data.pop('address', '')
@@ -206,7 +204,6 @@ class UserSignupSerializer(serializers.ModelSerializer):
             user=user,
             unit=unit,
             role=role,
-            id_number=id_number,
             address=address,
             city=city,
             contact_name=contact_name,
@@ -341,7 +338,6 @@ class AccessRequestSerializer(serializers.ModelSerializer):
     user_phone = serializers.CharField(source='user.phone', read_only=True)
     
     # Profile fields from registration
-    profile_id_number = serializers.CharField(source='user.profile.id_number', read_only=True)
     profile_address = serializers.CharField(source='user.profile.address', read_only=True)
     profile_city_id = serializers.IntegerField(source='user.profile.city.id', read_only=True, allow_null=True)
     profile_city_name = serializers.CharField(source='user.profile.city.name', read_only=True, allow_null=True)
@@ -364,7 +360,7 @@ class AccessRequestSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_username', 'user_email',
             'user_first_name', 'user_last_name', 'user_phone',
             # Profile fields
-            'profile_id_number', 'profile_address',
+            'profile_address',
             'profile_city_id', 'profile_city_name', 'profile_city_name_he',
             'profile_unit_id', 'profile_unit_name', 'profile_unit_name_he',
             'profile_role', 'profile_role_display',
