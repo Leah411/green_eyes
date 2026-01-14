@@ -170,12 +170,28 @@ def register_view(request):
     User registration endpoint.
     Creates a new user account (is_active=True but is_approved=False) + AccessRequest.
     """
+    import logging
+    logger = logging.getLogger('core')
+    
     serializer = UserSignupSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
         
         # Get the created access request
         access_request = AccessRequest.objects.filter(user=user).latest('submitted_at')
+        
+        # Send notification to admins (non-blocking)
+        logger.info(f"[REGISTRATION] New user registered: {user.email}, sending admin notification...")
+        try:
+            import threading
+            notification_thread = threading.Thread(
+                target=send_admin_new_user_notification, 
+                args=(user,),
+                daemon=True
+            )
+            notification_thread.start()
+        except Exception as e:
+            logger.error(f"[REGISTRATION] Failed to start admin notification thread: {e}")
         
         return Response({
             'message': 'User created successfully. Waiting for admin approval.',

@@ -256,13 +256,12 @@ class OTPSerializer(serializers.Serializer):
     
     def validate_email(self, value):
         """Ensure user exists and is approved"""
-        from core.supabase_helper import get_user_by_email
-        
-        user_dict = get_user_by_email(value)
-        if not user_dict:
+        try:
+            user = User.objects.get(email=value)
+        except User.DoesNotExist:
             raise serializers.ValidationError("User with this email does not exist.")
         
-        if not user_dict.get('is_approved', False):
+        if not user.is_approved:
             raise serializers.ValidationError("User account is not approved yet.")
         
         return value

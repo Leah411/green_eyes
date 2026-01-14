@@ -69,3 +69,5 @@ This should return nothing (or only `.env.example`/`.env.template`).
 
 The Git warning is likely detecting the SMTP configuration **patterns** in documentation files, not actual exposed credentials. However, if you're unsure, it's always safer to rotate your credentials.
 
+
+
