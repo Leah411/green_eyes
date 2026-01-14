@@ -381,8 +381,7 @@ export default function AvailabilityDashboard() {
 
     setSendingAlert(true);
     try {
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-      const homeLink = `${baseUrl}/home`;
+      const homeLink = 'https://green-eyes-frontend.onrender.com/home';
       
       const response = await api.sendAlert({
         subject: 'הופעל נוהל ירוק בעיניים',
