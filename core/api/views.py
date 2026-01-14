@@ -502,31 +502,14 @@ def approve_access_request_view(request, request_id):
     user.save()
     profile.save()
     
-    # Send approval notification
+    # Send approval notification (user will receive email that they were approved)
+    # OTP will be sent only when user requests it during login
     send_approval_notification(access_request.user)
     
-    # Generate and send OTP
-    otp_token = generate_otp_token()
-    expires_at = timezone.now() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
-    otp = OTPToken.objects.create(
-        user=access_request.user,
-        token=otp_token,
-        purpose='login',
-        expires_at=expires_at
-    )
-    email_sent, error_msg = send_otp_email(access_request.user, otp_token, purpose='login')
-    
     response_data = {
-        'message': 'Access request approved.',
+        'message': 'Access request approved. User will receive approval notification email.',
         'access_request': AccessRequestSerializer(access_request).data
     }
-    
-    if email_sent:
-        response_data['message'] = 'Access request approved. OTP sent to user email.'
-    else:
-        response_data['warning'] = f'Access request approved but OTP email failed to send: {error_msg or "Check email configuration."}'
-        if settings.DEBUG:
-            response_data['otp_code'] = otp_token
     
     return Response(response_data, status=status.HTTP_200_OK)
 
