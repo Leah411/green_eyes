@@ -303,9 +303,19 @@ export default function AvailabilityDashboard() {
         // Check if user is in NOCOUT team
         if (!isInNOCOUTTeam(user, allUnits)) return false;
         
-        // Check if location_text contains "גדעונים"
-        const locationText = (report.location_text || '').toLowerCase();
-        return locationText.includes('גדעונים');
+        // Check if location_text contains "גדעונים" and is NOT "בבית" or user's profile address
+        const locationText = (report.location_text || '').trim().toLowerCase();
+        const userAddress = (user.profile?.address || '').trim().toLowerCase();
+        
+        // Must contain "גדעונים"
+        if (!locationText.includes('גדעונים')) return false;
+        
+        // Must NOT be "בבית" or equal to user's address (home location)
+        if (locationText.includes('בבית') || locationText === userAddress) return false;
+        
+        // If location_text is exactly "גדעונים" or starts with "גדעונים", it's the base
+        // This ensures we only mark reports from the base, not from home
+        return true;
       };
       
       // Create unfiltered usersWithStatus first (before filtering) - this is our "original" state
