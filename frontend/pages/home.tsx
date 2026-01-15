@@ -171,7 +171,7 @@ export default function HomePage() {
               className="w-full px-4 py-3 border rounded-lg text-right focus:ring-2 focus:ring-green-500 focus:border-green-500"
             >
               <option value="">-- בחר מיקום --</option>
-                  <option value="base">בבסיס</option>
+                  <option value="base">בסיס גדעונים</option>
                   <option value="home">בבית</option>
                   <option value="other">אחר</option>
             </select>
