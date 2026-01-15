@@ -29,8 +29,8 @@ export default function Sidebar({ showSidebar, setShowSidebar, userRole = '' }: 
       />
       <div className="fixed right-0 top-0 h-screen w-80 bg-white shadow-2xl z-[100] overflow-y-auto" dir="rtl">
       <div className="sticky top-0 bg-green-600 text-white p-4 z-10">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold">תפריט</h2>
+        <div className="flex items-center">
+          <h2 className="text-xl font-bold flex-1 text-right">תפריט</h2>
           <button
             onClick={() => setShowSidebar(false)}
             className="text-white hover:text-gray-200 text-2xl"

@@ -126,12 +126,6 @@ export default function HomePage() {
             <h1 className="text-2xl font-bold text-green-600">עמוד בית</h1>
             <div className="flex gap-2">
               <button
-                onClick={() => setShowSidebar(!showSidebar)}
-                className="hidden md:block px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
-                {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
-              </button>
-              <button
                 onClick={() => api.logout()}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >

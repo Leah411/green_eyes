@@ -738,12 +738,6 @@ export default function AvailabilityDashboard() {
           <div className="max-w-7xl mx-auto px-2 md:px-4 py-1.5 sm:py-2 md:py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-1.5 md:gap-2">
             <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-green-600">דשבורד זמינות</h1>
             <div className="flex flex-wrap gap-1 sm:gap-1.5 md:gap-2 w-full md:w-auto">
-              <button
-                onClick={() => setShowSidebar(!showSidebar)}
-                className="hidden md:block px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
-                {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
-              </button>
               {(userRole === 'system_manager' || userRole === 'unit_manager' || userRole === 'admin') && (
                 <>
                   <button

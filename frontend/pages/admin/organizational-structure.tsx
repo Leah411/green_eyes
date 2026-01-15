@@ -408,12 +408,6 @@ export default function OrganizationalStructure() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-green-600">סידור מבנה</h1>
           <div className="flex gap-2">
-            <button
-                onClick={() => setShowSidebar(!showSidebar)}
-              className="hidden md:block px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-            >
-                {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
-            </button>
               <button
                 onClick={() => router.push('/home')}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"

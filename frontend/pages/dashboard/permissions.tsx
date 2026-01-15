@@ -469,12 +469,6 @@ export default function PermissionsDashboard() {
             <h1 className="text-2xl font-bold text-green-600">ניהול משתמשים</h1>
             <div className="flex gap-2">
               <button
-                onClick={() => setShowSidebar(!showSidebar)}
-                className="hidden md:block px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-              >
-                {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
-              </button>
-              <button
                 onClick={() => router.push('/dashboard/manager')}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
