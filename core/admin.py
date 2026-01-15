@@ -62,9 +62,9 @@ class LocationAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'unit', 'role', 'id_number', 'created_at')
+    list_display = ('user', 'unit', 'role', 'created_at')
     list_filter = ('role', 'unit', 'created_at')
-    search_fields = ('user__username', 'user__email', 'id_number')
+    search_fields = ('user__username', 'user__email')
     raw_id_fields = ('user', 'unit')
     readonly_fields = ('created_at', 'updated_at')
     
