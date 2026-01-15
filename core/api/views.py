@@ -17,6 +17,7 @@ import random
 import pandas as pd
 from io import BytesIO
 from django.db.models import Q, Count, Prefetch
+from django.db import IntegrityError
 from django.contrib.auth import get_user_model
 
 from core.models import (
@@ -618,11 +619,21 @@ def create_report_view(request):
     """
     serializer = AvailabilityReportSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
-        report = serializer.save()
-        return Response(
-            AvailabilityReportSerializer(report).data,
-            status=status.HTTP_201_CREATED
-        )
+        try:
+            report = serializer.save()
+            return Response(
+                AvailabilityReportSerializer(report).data,
+                status=status.HTTP_201_CREATED
+            )
+        except IntegrityError as e:
+            # Handle unique_together constraint violation
+            if 'unique constraint' in str(e).lower() or 'unique_together' in str(e).lower():
+                return Response(
+                    {'error': 'כבר קיים דוח זמינות עבור תאריך זה. ניתן לעדכן את הדוח הקיים.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Re-raise if it's a different IntegrityError
+            raise
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

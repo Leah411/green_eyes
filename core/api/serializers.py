@@ -305,7 +305,7 @@ class AvailabilityReportSerializer(serializers.ModelSerializer):
     user_username = serializers.CharField(source='user.username', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    location_name = serializers.CharField(source='location.name', read_only=True)
+    location_name = serializers.SerializerMethodField()
     
     class Meta:
         model = AvailabilityReport
@@ -315,6 +315,10 @@ class AvailabilityReportSerializer(serializers.ModelSerializer):
             'location_text', 'notes', 'submitted_at', 'updated_at'
         ]
         read_only_fields = ['user', 'submitted_at', 'updated_at']
+    
+    def get_location_name(self, obj):
+        """Return location name if location exists, otherwise return None"""
+        return obj.location.name if obj.location else None
     
     def create(self, validated_data):
         """Set user from request"""
