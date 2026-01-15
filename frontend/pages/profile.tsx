@@ -258,7 +258,7 @@ export default function ProfilePage() {
 
     // Validate all required fields
     if (!formData.first_name || !formData.last_name || !formData.email || 
-        !formData.phone || !formData.id_number) {
+        !formData.phone) {
       setError('כל השדות חייבים להיות ממולאים');
       setSaving(false);
       return;
@@ -271,7 +271,6 @@ export default function ProfilePage() {
       // Update profile if exists
       if (profile && profile.id) {
         const profileUpdateData: any = {
-          id_number: formData.id_number,
           unit: finalUnitId,
           address: formData.address,
           city: formData.city_id,

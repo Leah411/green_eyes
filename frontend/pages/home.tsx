@@ -42,7 +42,7 @@ export default function HomePage() {
       setUserRole(role);
       
       // Check if required fields are missing
-      if (!user.first_name || !user.last_name || !user.phone || !profile?.id_number) {
+      if (!user.first_name || !user.last_name || !user.phone) {
         // Redirect to profile page to complete
         router.push('/profile?incomplete=true');
         return;

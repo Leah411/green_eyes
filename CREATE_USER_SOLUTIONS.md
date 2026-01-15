@@ -33,7 +33,7 @@ Use the registration endpoint to create a new user:
 - `password` (auto-generated if not provided - users use OTP to login)
 - `unit_id` (if you have units)
 - `role` (default: 'user')
-- `id_number`, `address`, `city_id`, etc.
+- `address`, `city_id`, etc.
 
 **Response:**
 ```json
@@ -171,5 +171,6 @@ curl -X POST https://green-eyes-uaw4.onrender.com/api/auth/register/ \
 **Alternative:** Create user via Shell or Admin panel
 
 What email are you trying to use? I can help you register it!
+
 
 

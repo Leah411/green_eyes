@@ -185,8 +185,7 @@ class Command(BaseCommand):
             Profile.objects.create(
                 user=admin_user,
                 unit=units['prisma'],
-                role='admin',
-                id_number='000000000'
+                role='admin'
             )
             self.stdout.write(self.style.SUCCESS(f'  ✓ Created admin user: {admin_user.username} (password: admin123)'))
         
@@ -207,8 +206,7 @@ class Command(BaseCommand):
             Profile.objects.create(
                 user=unit_manager,
                 unit=units['prisma'],
-                role='unit_manager',
-                id_number='111111111'
+                role='unit_manager'
             )
             self.stdout.write(self.style.SUCCESS(f'  ✓ Created unit manager: {unit_manager.username} (password: manager123)'))
         
@@ -229,8 +227,7 @@ class Command(BaseCommand):
             Profile.objects.create(
                 user=branch_manager,
                 unit=units['tamz'],
-                role='branch_manager',
-                id_number='222222222'
+                role='branch_manager'
             )
             self.stdout.write(self.style.SUCCESS(f'  ✓ Created branch manager: {branch_manager.username} (password: manager123)'))
         
@@ -253,8 +250,7 @@ class Command(BaseCommand):
             Profile.objects.create(
                 user=section_manager,
                 unit=first_section,
-                role='section_manager',
-                id_number='333333333'
+                role='section_manager'
             )
             self.stdout.write(self.style.SUCCESS(f'  ✓ Created section manager: {section_manager.username} (password: manager123)'))
         
@@ -277,8 +273,7 @@ class Command(BaseCommand):
             Profile.objects.create(
                 user=team_manager,
                 unit=first_team,
-                role='team_manager',
-                id_number='444444444'
+                role='team_manager'
             )
             self.stdout.write(self.style.SUCCESS(f'  ✓ Created team manager: {team_manager.username} (password: manager123)'))
         
@@ -302,8 +297,7 @@ class Command(BaseCommand):
                 Profile.objects.create(
                     user=user,
                     unit=first_team,
-                    role='user',
-                    id_number=f'55555555{i}'
+                    role='user'
                 )
                 self.stdout.write(self.style.SUCCESS(f'  ✓ Created user: {user.username} (password: user123)'))
         
@@ -327,8 +321,7 @@ class Command(BaseCommand):
             Profile.objects.create(
                 user=pending_user,
                 unit=second_team,
-                role='user',
-                id_number='666666666'
+                role='user'
             )
             AccessRequest.objects.create(
                 user=pending_user,

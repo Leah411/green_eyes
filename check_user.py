@@ -52,7 +52,6 @@ def check_user(email):
         print(f"\nProfile Information:")
         print(f"   Role: {profile.get_role_display()} ({profile.role})")
         print(f"   Unit: {profile.unit.name if profile.unit else 'N/A'}")
-        print(f"   ID Number: {profile.id_number or 'N/A'}")
     except Profile.DoesNotExist:
         print(f"\n[WARNING] No profile found for this user")
     

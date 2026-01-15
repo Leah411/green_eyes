@@ -330,7 +330,6 @@ export default function AvailabilityDashboard() {
           'שם משפחה': user.last_name || '-',
           'שם מלא': fullName,
           'אימייל': user.email || '-',
-          'תעודת זהות': user.id_number || '-',
           'טלפון': user.phone || '-',
           'כתובת': user.address || '-',
           'עיר': user.city || '-',

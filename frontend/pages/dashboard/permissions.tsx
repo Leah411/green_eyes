@@ -343,7 +343,6 @@ export default function PermissionsDashboard() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תעודת זהות</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">אימייל</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תפקיד</th>
@@ -354,7 +353,6 @@ export default function PermissionsDashboard() {
                   <tbody className="divide-y divide-gray-200">
                       {filteredUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-right">{user.profile?.id_number || '-'}</td>
                         <td className="px-6 py-4 text-right">{user.email}</td>
                         <td className="px-6 py-4 text-right">
                           {user.first_name || ''} {user.last_name || ''}
@@ -578,10 +576,6 @@ export default function PermissionsDashboard() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.phone || '-'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">תעודת זהות:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.profile?.id_number || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת:</label>
