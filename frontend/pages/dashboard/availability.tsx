@@ -734,10 +734,10 @@ export default function AvailabilityDashboard() {
       
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'md:mr-80' : ''}`}>
-        <header className="bg-white shadow">
+        <header className="bg-white shadow sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-            <h1 className="text-xl md:text-2xl font-bold text-green-600">דשבורד זמינות</h1>
-            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-green-600">דשבורד זמינות</h1>
+            <div className="flex flex-wrap gap-1.5 md:gap-2 w-full md:w-auto">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="hidden md:block px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
@@ -765,11 +765,11 @@ export default function AvailabilityDashboard() {
           </div>
         </header>
 
-      <main className="max-w-7xl mx-auto px-2 md:px-4 py-4 md:py-8">
+      <main className="max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 lg:py-8">
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow mb-4 md:mb-6 p-3 md:p-4">
-          <div className="mb-3 md:mb-4">
-            <h3 className="text-base md:text-lg font-semibold text-gray-700 mb-2 md:mb-3">סינון לפי מבנה ארגוני</h3>
+        <div className="bg-white rounded-lg shadow mb-3 md:mb-6 p-2 md:p-4 overflow-hidden">
+          <div className="mb-2 md:mb-4">
+            <h3 className="text-sm md:text-base lg:text-lg font-semibold text-gray-700 mb-2 md:mb-3">סינון לפי מבנה ארגוני</h3>
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-start">
               {/* Units Dropdown */}
               <div className="relative w-full md:w-auto" ref={unitsDropdownRef}>
@@ -922,7 +922,7 @@ export default function AvailabilityDashboard() {
                     clearAllFilters();
                     setStatusFilter(null);
                   }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
                 >
                   נקה סינון
                 </button>
@@ -930,8 +930,8 @@ export default function AvailabilityDashboard() {
             </div>
           </div>
           {lastAlert && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="mt-3 md:mt-4 p-2 md:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs md:text-sm text-blue-800">
                 <strong>התרעה אחרונה:</strong> {lastAlert.subject} - {new Date(lastAlert.sent_at).toLocaleString('he-IL')}
               </p>
             </div>
@@ -939,25 +939,25 @@ export default function AvailabilityDashboard() {
         </div>
 
         {/* Status Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 mb-3 md:mb-6">
+          <div className="bg-white rounded-lg shadow p-3 md:p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-600">סה"כ משתמשים</span>
-              <span className="text-2xl font-bold text-gray-800">{users.length}</span>
+              <span className="text-xs md:text-sm font-medium text-gray-600">סה"כ משתמשים</span>
+              <span className="text-xl md:text-2xl font-bold text-gray-800">{users.length}</span>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-lg shadow p-3 md:p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-600">מילאו דוח</span>
-              <span className="text-2xl font-bold text-green-600">
+              <span className="text-xs md:text-sm font-medium text-gray-600">מילאו דוח</span>
+              <span className="text-xl md:text-2xl font-bold text-green-600">
                 {users.filter(u => u.status === 'green').length}
               </span>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-lg shadow p-3 md:p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-600">לא מילאו דוח</span>
-              <span className="text-2xl font-bold text-red-600">
+              <span className="text-xs md:text-sm font-medium text-gray-600">לא מילאו דוח</span>
+              <span className="text-xl md:text-2xl font-bold text-red-600">
                 {users.filter(u => u.status === 'red').length}
               </span>
             </div>
@@ -965,14 +965,13 @@ export default function AvailabilityDashboard() {
         </div>
 
         {/* Users Table */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-4 md:p-6 border-b">
-            <h2 className="text-lg md:text-xl font-semibold text-right">סטטוס דוחות זמינות</h2>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-3 md:p-4 lg:p-6 border-b">
+            <h2 className="text-base md:text-lg lg:text-xl font-semibold text-right">סטטוס דוחות זמינות</h2>
           </div>
-          <div className="overflow-x-auto -mx-2 md:mx-0">
+          <div className="overflow-auto -mx-2 md:mx-0" style={{ maxHeight: 'calc(100vh - 300px)' }}>
             <div className="inline-block min-w-full align-middle">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '800px' }}>
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
@@ -1091,8 +1090,7 @@ export default function AvailabilityDashboard() {
                   );
                 })}
               </tbody>
-                </table>
-              </div>
+            </table>
             </div>
             {users.length === 0 && (
               <div className="p-8 text-center text-gray-500">אין משתמשים להצגה</div>
