@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 export default function AvailabilityDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
+  const [originalUsers, setOriginalUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string>('');
   const [showSidebar, setShowSidebar] = useState<boolean>(true);
@@ -192,20 +193,26 @@ export default function AvailabilityDashboard() {
       
       // Build filter based on hierarchy (most specific/deepest level wins)
       // Hierarchy: Team > Section > Branch > Unit
+      // Logic: Use the most specific level, show union of all selections at that level, only direct matches (no descendants)
       let selectedUnitIds: number[] = [];
+      let filterLevel: 'teams' | 'sections' | 'branches' | 'units' | 'none' = 'none';
 
       if (selectedTeams.size > 0) {
-        // Most specific: show only users from selected teams (and their descendants if any)
+        // Most specific: show only users from selected teams (direct match only, no descendants)
         selectedUnitIds = Array.from(selectedTeams);
+        filterLevel = 'teams';
       } else if (selectedSections.size > 0) {
-        // Show users from selected sections + their descendant teams
+        // Show users from selected sections (direct match only, no descendants)
         selectedUnitIds = Array.from(selectedSections);
+        filterLevel = 'sections';
       } else if (selectedBranches.size > 0) {
-        // Show users from selected branches + their descendant sections/teams
+        // Show users from selected branches (direct match only, no descendants)
         selectedUnitIds = Array.from(selectedBranches);
+        filterLevel = 'branches';
       } else if (selectedUnits.size > 0) {
-        // Least specific: show users from selected units + all descendants
+        // Least specific: show users from selected units (direct match only, no descendants)
         selectedUnitIds = Array.from(selectedUnits);
+        filterLevel = 'units';
       }
 
       console.log('Filter hierarchy applied:', {
@@ -214,10 +221,7 @@ export default function AvailabilityDashboard() {
         selectedBranches: selectedBranches.size,
         selectedUnits: selectedUnits.size,
         finalSelectedIds: selectedUnitIds,
-        reason: selectedTeams.size > 0 ? 'teams' : 
-                selectedSections.size > 0 ? 'sections' : 
-                selectedBranches.size > 0 ? 'branches' : 
-                selectedUnits.size > 0 ? 'units' : 'none'
+        filterLevel: filterLevel
       });
       
       // Use old selectedUnit for backward compatibility, or new filter
@@ -239,31 +243,16 @@ export default function AvailabilityDashboard() {
       });
       
       // Filter users by selected units/branches/sections/teams
+      // Only show users that belong DIRECTLY to the selected units (no descendants)
       let usersToShow = allUsers;
       
       if (selectedUnitIds.length > 0 && allUnits.length > 0) {
-        // Build a set of all relevant unit IDs (selected units themselves + all their descendants)
-        // This allows filtering users who belong to any unit in the selected hierarchy
-        const relevantUnitIds = new Set<number>(selectedUnitIds);
-        
-        // Add all descendants of selected units (children, grandchildren, etc.)
-        const addDescendants = (unitId: number) => {
-          const children = allUnits.filter(u => {
-            const parentId = typeof u.parent === 'object' ? u.parent?.id : u.parent;
-            return parentId === unitId;
-          });
-          children.forEach(child => {
-            relevantUnitIds.add(child.id);
-            addDescendants(child.id); // Recursively add descendants
-          });
-        };
-        
-        // Add descendants for all selected units
-        selectedUnitIds.forEach(id => addDescendants(id));
+        // Create a set of selected unit IDs for fast lookup
+        const selectedUnitIdsSet = new Set<number>(selectedUnitIds);
         
         console.log('Filtering users:', {
           selectedUnitIds: Array.from(selectedUnitIds),
-          relevantUnitIds: Array.from(relevantUnitIds),
+          filterLevel: filterLevel,
           totalUsers: allUsers.length,
           allUnitsCount: allUnits.length
         });
@@ -276,8 +265,8 @@ export default function AvailabilityDashboard() {
           
           if (!userUnitId) return false;
           
-          // Check if user's unit is in the relevant units set (selected units or their descendants)
-          return relevantUnitIds.has(userUnitId);
+          // Check if user's unit is directly in the selected units set (direct match only, no descendants)
+          return selectedUnitIdsSet.has(userUnitId);
         });
         
         console.log('Filtered users count:', usersToShow.length, 'out of', allUsers.length);
@@ -285,7 +274,40 @@ export default function AvailabilityDashboard() {
         console.warn('Cannot filter: allUnits not loaded yet');
       }
       
-      // Merge user data with report status
+      // Create unfiltered usersWithStatus first (before filtering) - this is our "original" state
+      const unfilteredUsersWithStatus = allUsers.map((user: any) => {
+        const latestReportDate = reportsByUser.get(user.id);
+        const hasFilledReport = !!latestReportDate;
+        
+        return {
+          user_id: user.id,
+          username: user.username,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          phone: user.phone,
+          address: user.profile?.address,
+          city: user.profile?.city_name_he || user.profile?.city_name,
+          contact_name: user.profile?.contact_name,
+          contact_phone: user.profile?.contact_phone,
+          unit: user.profile?.unit ? {
+            id: user.profile.unit,
+            name: user.profile.unit_name,
+            name_he: user.profile.unit_name
+          } : null,
+          status: hasFilledReport ? 'green' : 'red',
+          has_filled_report: hasFilledReport,
+          latest_report_date: latestReportDate,
+        };
+      });
+      
+      // Save original users state before filtering (always save unfiltered state, but only if originalUsers is empty)
+      // This ensures we have a baseline to return to when filters are cleared
+      if (originalUsers.length === 0) {
+        setOriginalUsers(unfilteredUsersWithStatus);
+      }
+      
+      // Merge filtered user data with report status
       let usersWithStatus = usersToShow.map((user: any) => {
         const latestReportDate = reportsByUser.get(user.id);
         const hasFilledReport = !!latestReportDate;
@@ -678,6 +700,10 @@ export default function AvailabilityDashboard() {
     setSelectedSections(new Set());
     setSelectedTeams(new Set());
     setSelectedUnit('');
+    // Restore table to previous state (original users before filtering)
+    if (originalUsers.length > 0) {
+      setUsers(originalUsers);
+    }
   };
   
   // Get available options based on hierarchical selections
