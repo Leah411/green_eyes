@@ -766,7 +766,7 @@ export default function AvailabilityDashboard() {
             <h3 className="text-xs sm:text-sm md:text-base lg:text-lg font-semibold text-gray-700 mb-1.5 sm:mb-2 md:mb-3">סינון לפי מבנה ארגוני</h3>
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-start">
               {/* Units Dropdown */}
-              <div className="relative w-full md:w-auto" ref={unitsDropdownRef}>
+              <div className="relative w-full md:w-auto z-[9999]" ref={unitsDropdownRef}>
                 <button
                   onClick={() => {
                     setUnitsDropdownOpen(!unitsDropdownOpen);
@@ -780,7 +780,7 @@ export default function AvailabilityDashboard() {
                   <span className="mr-2">▼</span>
                 </button>
                 {unitsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                  <div className="absolute z-[9999] mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
                     <div className="p-2">
                       {allUnits.filter(u => u.unit_type === 'unit').map((unit) => (
                         <label key={unit.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
@@ -802,7 +802,7 @@ export default function AvailabilityDashboard() {
               </div>
 
               {/* Branches Dropdown */}
-              <div className="relative w-full md:w-auto" ref={branchesDropdownRef}>
+              <div className="relative w-full md:w-auto z-[9999]" ref={branchesDropdownRef}>
                 <button
                   onClick={() => {
                     setBranchesDropdownOpen(!branchesDropdownOpen);
@@ -816,7 +816,7 @@ export default function AvailabilityDashboard() {
                   <span className="mr-2">▼</span>
                 </button>
                 {branchesDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                  <div className="absolute z-[9999] mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
                     <div className="p-2">
                       {getAvailableBranches().map((branch) => (
                         <label key={branch.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
@@ -838,7 +838,7 @@ export default function AvailabilityDashboard() {
               </div>
 
               {/* Sections Dropdown */}
-              <div className="relative w-full md:w-auto" ref={sectionsDropdownRef}>
+              <div className="relative w-full md:w-auto z-[9999]" ref={sectionsDropdownRef}>
                 <button
                   onClick={() => {
                     setSectionsDropdownOpen(!sectionsDropdownOpen);
@@ -852,7 +852,7 @@ export default function AvailabilityDashboard() {
                   <span className="mr-2">▼</span>
                 </button>
                 {sectionsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                  <div className="absolute z-[9999] mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
                     <div className="p-2">
                       {getAvailableSections().map((section) => (
                         <label key={section.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
@@ -874,7 +874,7 @@ export default function AvailabilityDashboard() {
               </div>
 
               {/* Teams Dropdown */}
-              <div className="relative w-full md:w-auto" ref={teamsDropdownRef}>
+              <div className="relative w-full md:w-auto z-[9999]" ref={teamsDropdownRef}>
                 <button
                   onClick={() => {
                     setTeamsDropdownOpen(!teamsDropdownOpen);
@@ -888,7 +888,7 @@ export default function AvailabilityDashboard() {
                   <span className="mr-2">▼</span>
                 </button>
                 {teamsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                  <div className="absolute z-[9999] mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
                     <div className="p-2">
                       {getAvailableTeams().map((team) => (
                         <label key={team.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
