@@ -728,16 +728,16 @@ export default function AvailabilityDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex w-full overflow-x-hidden" dir="rtl">
       {/* Menu Icon */}
       <MenuIcon onClick={() => setShowSidebar(!showSidebar)} isOpen={showSidebar} />
       
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'md:mr-80' : ''}`}>
-        <header className="bg-white shadow sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-            <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-green-600">דשבורד זמינות</h1>
-            <div className="flex flex-wrap gap-1.5 md:gap-2 w-full md:w-auto">
+      <div className={`flex-1 transition-all duration-300 w-full min-w-0 ${showSidebar ? 'md:mr-80' : ''}`}>
+        <header className="bg-white shadow sticky top-0 z-40 w-full">
+          <div className="max-w-7xl mx-auto px-2 md:px-4 py-1.5 sm:py-2 md:py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-1.5 md:gap-2">
+            <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-green-600">דשבורד זמינות</h1>
+            <div className="flex flex-wrap gap-1 sm:gap-1.5 md:gap-2 w-full md:w-auto">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="hidden md:block px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
@@ -765,11 +765,11 @@ export default function AvailabilityDashboard() {
           </div>
         </header>
 
-      <main className="max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 lg:py-8">
+      <main className="max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 lg:py-8 w-full">
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow mb-3 md:mb-6 p-2 md:p-4 overflow-hidden">
+        <div className="bg-white rounded-lg shadow mb-2 sm:mb-3 md:mb-6 p-2 md:p-4 overflow-hidden w-full">
           <div className="mb-2 md:mb-4">
-            <h3 className="text-sm md:text-base lg:text-lg font-semibold text-gray-700 mb-2 md:mb-3">סינון לפי מבנה ארגוני</h3>
+            <h3 className="text-xs sm:text-sm md:text-base lg:text-lg font-semibold text-gray-700 mb-1.5 sm:mb-2 md:mb-3">סינון לפי מבנה ארגוני</h3>
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-start">
               {/* Units Dropdown */}
               <div className="relative w-full md:w-auto" ref={unitsDropdownRef}>
@@ -939,25 +939,25 @@ export default function AvailabilityDashboard() {
         </div>
 
         {/* Status Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 mb-3 md:mb-6">
-          <div className="bg-white rounded-lg shadow p-3 md:p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs md:text-sm font-medium text-gray-600">סה"כ משתמשים</span>
-              <span className="text-xl md:text-2xl font-bold text-gray-800">{users.length}</span>
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 md:gap-4 mb-3 md:mb-6">
+          <div className="bg-white rounded-lg shadow p-2 sm:p-3 md:p-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-center sm:justify-between gap-1 sm:gap-0">
+              <span className="text-[10px] sm:text-xs md:text-sm font-medium text-gray-600 text-center sm:text-right">סה"כ משתמשים</span>
+              <span className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">{users.length}</span>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-3 md:p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs md:text-sm font-medium text-gray-600">מילאו דוח</span>
-              <span className="text-xl md:text-2xl font-bold text-green-600">
+          <div className="bg-white rounded-lg shadow p-2 sm:p-3 md:p-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-center sm:justify-between gap-1 sm:gap-0">
+              <span className="text-[10px] sm:text-xs md:text-sm font-medium text-gray-600 text-center sm:text-right">מילאו דוח</span>
+              <span className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">
                 {users.filter(u => u.status === 'green').length}
               </span>
             </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-3 md:p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs md:text-sm font-medium text-gray-600">לא מילאו דוח</span>
-              <span className="text-xl md:text-2xl font-bold text-red-600">
+          <div className="bg-white rounded-lg shadow p-2 sm:p-3 md:p-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-center sm:justify-between gap-1 sm:gap-0">
+              <span className="text-[10px] sm:text-xs md:text-sm font-medium text-gray-600 text-center sm:text-right">לא מילאו דוח</span>
+              <span className="text-lg sm:text-xl md:text-2xl font-bold text-red-600">
                 {users.filter(u => u.status === 'red').length}
               </span>
             </div>
@@ -966,45 +966,45 @@ export default function AvailabilityDashboard() {
 
         {/* Users Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-3 md:p-4 lg:p-6 border-b">
-            <h2 className="text-base md:text-lg lg:text-xl font-semibold text-right">סטטוס דוחות זמינות</h2>
+          <div className="p-2 sm:p-3 md:p-4 lg:p-6 border-b">
+            <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-semibold text-right">סטטוס דוחות זמינות</h2>
           </div>
-          <div className="overflow-auto -mx-2 md:mx-0" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+          <div className="overflow-auto -mx-2 md:mx-0" style={{ maxHeight: 'calc(100vh - 250px)' }}>
             <div className="inline-block min-w-full align-middle">
               <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '800px' }}>
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-2">
+                  <th className="px-1.5 sm:px-2 md:px-6 py-1.5 sm:py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-1 sm:gap-2">
                       <span>סטטוס</span>
                       <div className="flex flex-col gap-0">
                         <button
                           onClick={() => setStatusFilter(statusFilter === 'red' ? null : 'red')}
-                          className={`p-1 hover:bg-gray-200 rounded transition-colors ${statusFilter === 'red' ? 'bg-red-100 text-red-600' : 'text-gray-400'}`}
+                          className={`p-0.5 sm:p-1 hover:bg-gray-200 rounded transition-colors ${statusFilter === 'red' ? 'bg-red-100 text-red-600' : 'text-gray-400'}`}
                           title="הצג רק מי שלא מילא דוח"
                         >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
                           </svg>
                         </button>
                         <button
                           onClick={() => setStatusFilter(statusFilter === 'green' ? null : 'green')}
-                          className={`p-1 hover:bg-gray-200 rounded transition-colors ${statusFilter === 'green' ? 'bg-green-100 text-green-600' : 'text-gray-400'}`}
+                          className={`p-0.5 sm:p-1 hover:bg-gray-200 rounded transition-colors ${statusFilter === 'green' ? 'bg-green-100 text-green-600' : 'text-gray-400'}`}
                           title="הצג רק מי שמילא דוח"
                         >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                           </svg>
                         </button>
                       </div>
                     </div>
                   </th>
-                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">שם</th>
-                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">טלפון</th>
-                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">כתובת</th>
-                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">עיר</th>
-                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">יחידה</th>
-                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">תאריך ושעה דוח אחרון</th>
+                  <th className="px-1.5 sm:px-2 md:px-6 py-1.5 sm:py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">שם</th>
+                  <th className="px-1.5 sm:px-2 md:px-6 py-1.5 sm:py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">טלפון</th>
+                  <th className="px-1.5 sm:px-2 md:px-6 py-1.5 sm:py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">כתובת</th>
+                  <th className="px-1.5 sm:px-2 md:px-6 py-1.5 sm:py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">עיר</th>
+                  <th className="px-1.5 sm:px-2 md:px-6 py-1.5 sm:py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">יחידה</th>
+                  <th className="px-1.5 sm:px-2 md:px-6 py-1.5 sm:py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">תאריך ושעה דוח אחרון</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -1022,13 +1022,13 @@ export default function AvailabilityDashboard() {
                       key={user.user_id} 
                       className={`transition-colors ${getRowColor(user.status)}`}
                     >
-                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">
-                        <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(user.status)}`}>
+                      <td className="px-1.5 sm:px-2 md:px-6 py-2 sm:py-3 md:py-4 text-right whitespace-nowrap">
+                        <span className={`px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold border ${getStatusColor(user.status)}`}>
                           {getStatusText(user.status, user.has_filled_report)}
                         </span>
                       </td>
                       <td 
-                        className="px-2 md:px-6 py-3 md:py-4 text-right font-medium cursor-pointer hover:text-green-600 hover:underline whitespace-nowrap"
+                        className="px-1.5 sm:px-2 md:px-6 py-2 sm:py-3 md:py-4 text-right font-medium cursor-pointer hover:text-green-600 hover:underline whitespace-nowrap text-xs sm:text-sm md:text-base"
                         onClick={() => {
                           setSelectedUserForContact(user);
                           setShowContactPopup(true);
@@ -1036,10 +1036,10 @@ export default function AvailabilityDashboard() {
                       >
                         {fullName}
                       </td>
-                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">{user.phone || '-'}</td>
-                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">{user.address || '-'}</td>
-                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">{user.city || '-'}</td>
-                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">
+                      <td className="px-1.5 sm:px-2 md:px-6 py-2 sm:py-3 md:py-4 text-right whitespace-nowrap text-xs sm:text-sm md:text-base">{user.phone || '-'}</td>
+                      <td className="px-1.5 sm:px-2 md:px-6 py-2 sm:py-3 md:py-4 text-right whitespace-nowrap text-xs sm:text-sm md:text-base">{user.address || '-'}</td>
+                      <td className="px-1.5 sm:px-2 md:px-6 py-2 sm:py-3 md:py-4 text-right whitespace-nowrap text-xs sm:text-sm md:text-base">{user.city || '-'}</td>
+                      <td className="px-1.5 sm:px-2 md:px-6 py-2 sm:py-3 md:py-4 text-right whitespace-nowrap text-xs sm:text-sm md:text-base">
                         {(() => {
                           if (!user.unit || !user.unit.id) return '-';
                           
@@ -1075,7 +1075,7 @@ export default function AvailabilityDashboard() {
                           return path.length > 0 ? path.join(' > ') : (user.unit.name_he || user.unit.name || '-');
                         })()}
                       </td>
-                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">
+                      <td className="px-1.5 sm:px-2 md:px-6 py-2 sm:py-3 md:py-4 text-right whitespace-nowrap text-xs sm:text-sm md:text-base">
                         {user.latest_report_date 
                           ? new Date(user.latest_report_date).toLocaleString('he-IL', {
                               year: 'numeric',
