@@ -21,7 +21,13 @@ export default function Sidebar({ showSidebar, setShowSidebar, userRole = '' }: 
   if (!showSidebar) return null;
 
   return (
-    <div className="fixed right-0 top-0 h-screen w-80 bg-white shadow-2xl z-[100] overflow-y-auto" dir="rtl">
+    <>
+      {/* Overlay for mobile */}
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 z-[99] md:hidden"
+        onClick={() => setShowSidebar(false)}
+      />
+      <div className="fixed right-0 top-0 h-screen w-80 bg-white shadow-2xl z-[100] overflow-y-auto" dir="rtl">
       <div className="sticky top-0 bg-green-600 text-white p-4 z-10">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold">תפריט</h2>
@@ -84,6 +90,7 @@ export default function Sidebar({ showSidebar, setShowSidebar, userRole = '' }: 
         )}
       </nav>
     </div>
+    </>
   );
 }
 

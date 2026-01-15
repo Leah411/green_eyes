@@ -729,14 +729,14 @@ export default function AvailabilityDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'mr-80' : ''}`}>
+      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'md:mr-80' : ''}`}>
         <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-green-600">דשבורד זמינות</h1>
-            <div className="flex gap-2">
+          <div className="max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <h1 className="text-xl md:text-2xl font-bold text-green-600">דשבורד זמינות</h1>
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
                 {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
               </button>
@@ -745,7 +745,7 @@ export default function AvailabilityDashboard() {
                   <button
                     onClick={handleSendAlert}
                     disabled={sendingAlert}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     {sendingAlert ? 'שולח...' : 'שלח התרעה'}
                   </button>
@@ -753,7 +753,7 @@ export default function AvailabilityDashboard() {
               )}
               <button
                 onClick={handleExport}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-green-600 text-white rounded hover:bg-green-700"
               >
                 ייצוא לאקסל
               </button>
@@ -761,14 +761,14 @@ export default function AvailabilityDashboard() {
           </div>
         </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-2 md:px-4 py-4 md:py-8">
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow mb-6 p-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-3">סינון לפי מבנה ארגוני</h3>
-            <div className="flex gap-4 items-start flex-wrap">
+        <div className="bg-white rounded-lg shadow mb-4 md:mb-6 p-3 md:p-4">
+          <div className="mb-3 md:mb-4">
+            <h3 className="text-base md:text-lg font-semibold text-gray-700 mb-2 md:mb-3">סינון לפי מבנה ארגוני</h3>
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-start">
               {/* Units Dropdown */}
-              <div className="relative" ref={unitsDropdownRef}>
+              <div className="relative w-full md:w-auto" ref={unitsDropdownRef}>
                 <button
                   onClick={() => {
                     setUnitsDropdownOpen(!unitsDropdownOpen);
@@ -776,13 +776,13 @@ export default function AvailabilityDashboard() {
                     setSectionsDropdownOpen(false);
                     setTeamsDropdownOpen(false);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[200px] text-right flex items-center justify-between"
+                  className="w-full md:w-auto px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[150px] md:min-w-[200px] text-right flex items-center justify-between"
                 >
                   <span>יחידות {selectedUnits.size > 0 && `(${selectedUnits.size})`}</span>
                   <span className="mr-2">▼</span>
                 </button>
                 {unitsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                  <div className="absolute z-50 mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
                     <div className="p-2">
                       {allUnits.filter(u => u.unit_type === 'unit').map((unit) => (
                         <label key={unit.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
@@ -804,7 +804,7 @@ export default function AvailabilityDashboard() {
               </div>
 
               {/* Branches Dropdown */}
-              <div className="relative" ref={branchesDropdownRef}>
+              <div className="relative w-full md:w-auto" ref={branchesDropdownRef}>
                 <button
                   onClick={() => {
                     setBranchesDropdownOpen(!branchesDropdownOpen);
@@ -812,13 +812,13 @@ export default function AvailabilityDashboard() {
                     setSectionsDropdownOpen(false);
                     setTeamsDropdownOpen(false);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[200px] text-right flex items-center justify-between"
+                  className="w-full md:w-auto px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[150px] md:min-w-[200px] text-right flex items-center justify-between"
                 >
                   <span>ענפים {selectedBranches.size > 0 && `(${selectedBranches.size})`}</span>
                   <span className="mr-2">▼</span>
                 </button>
                 {branchesDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                  <div className="absolute z-50 mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
                     <div className="p-2">
                       {getAvailableBranches().map((branch) => (
                         <label key={branch.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
@@ -840,7 +840,7 @@ export default function AvailabilityDashboard() {
               </div>
 
               {/* Sections Dropdown */}
-              <div className="relative" ref={sectionsDropdownRef}>
+              <div className="relative w-full md:w-auto" ref={sectionsDropdownRef}>
                 <button
                   onClick={() => {
                     setSectionsDropdownOpen(!sectionsDropdownOpen);
@@ -848,13 +848,13 @@ export default function AvailabilityDashboard() {
                     setBranchesDropdownOpen(false);
                     setTeamsDropdownOpen(false);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[200px] text-right flex items-center justify-between"
+                  className="w-full md:w-auto px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[150px] md:min-w-[200px] text-right flex items-center justify-between"
                 >
                   <span>מדורים {selectedSections.size > 0 && `(${selectedSections.size})`}</span>
                   <span className="mr-2">▼</span>
                 </button>
                 {sectionsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                  <div className="absolute z-50 mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
                     <div className="p-2">
                       {getAvailableSections().map((section) => (
                         <label key={section.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
@@ -876,7 +876,7 @@ export default function AvailabilityDashboard() {
               </div>
 
               {/* Teams Dropdown */}
-              <div className="relative" ref={teamsDropdownRef}>
+              <div className="relative w-full md:w-auto" ref={teamsDropdownRef}>
                 <button
                   onClick={() => {
                     setTeamsDropdownOpen(!teamsDropdownOpen);
@@ -884,13 +884,13 @@ export default function AvailabilityDashboard() {
                     setBranchesDropdownOpen(false);
                     setSectionsDropdownOpen(false);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[200px] text-right flex items-center justify-between"
+                  className="w-full md:w-auto px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white min-w-[150px] md:min-w-[200px] text-right flex items-center justify-between"
                 >
                   <span>צוותים {selectedTeams.size > 0 && `(${selectedTeams.size})`}</span>
                   <span className="mr-2">▼</span>
                 </button>
                 {teamsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
+                  <div className="absolute z-50 mt-1 w-full md:w-64 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" dir="rtl">
                     <div className="p-2">
                       {getAvailableTeams().map((team) => (
                         <label key={team.id} className="flex items-center p-2 hover:bg-gray-50 cursor-pointer">
@@ -962,14 +962,16 @@ export default function AvailabilityDashboard() {
 
         {/* Users Table */}
         <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b">
-            <h2 className="text-xl font-semibold text-right">סטטוס דוחות זמינות</h2>
+          <div className="p-4 md:p-6 border-b">
+            <h2 className="text-lg md:text-xl font-semibold text-right">סטטוס דוחות זמינות</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="overflow-x-auto -mx-2 md:mx-0">
+            <div className="inline-block min-w-full align-middle">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <div className="flex items-center justify-end gap-2">
                       <span>סטטוס</span>
                       <div className="flex flex-col gap-0">
@@ -994,12 +996,12 @@ export default function AvailabilityDashboard() {
                       </div>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">טלפון</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">כתובת</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">עיר</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">יחידה</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תאריך ושעה דוח אחרון</th>
+                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">שם</th>
+                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">טלפון</th>
+                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">כתובת</th>
+                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">עיר</th>
+                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">יחידה</th>
+                  <th className="px-2 md:px-6 py-2 md:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">תאריך ושעה דוח אחרון</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -1017,13 +1019,13 @@ export default function AvailabilityDashboard() {
                       key={user.user_id} 
                       className={`transition-colors ${getRowColor(user.status)}`}
                     >
-                      <td className="px-6 py-4 text-right">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(user.status)}`}>
+                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">
+                        <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(user.status)}`}>
                           {getStatusText(user.status, user.has_filled_report)}
                         </span>
                       </td>
                       <td 
-                        className="px-6 py-4 text-right font-medium cursor-pointer hover:text-green-600 hover:underline"
+                        className="px-2 md:px-6 py-3 md:py-4 text-right font-medium cursor-pointer hover:text-green-600 hover:underline whitespace-nowrap"
                         onClick={() => {
                           setSelectedUserForContact(user);
                           setShowContactPopup(true);
@@ -1031,10 +1033,10 @@ export default function AvailabilityDashboard() {
                       >
                         {fullName}
                       </td>
-                      <td className="px-6 py-4 text-right">{user.phone || '-'}</td>
-                      <td className="px-6 py-4 text-right">{user.address || '-'}</td>
-                      <td className="px-6 py-4 text-right">{user.city || '-'}</td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">{user.phone || '-'}</td>
+                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">{user.address || '-'}</td>
+                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">{user.city || '-'}</td>
+                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">
                         {(() => {
                           if (!user.unit || !user.unit.id) return '-';
                           
@@ -1070,7 +1072,7 @@ export default function AvailabilityDashboard() {
                           return path.length > 0 ? path.join(' > ') : (user.unit.name_he || user.unit.name || '-');
                         })()}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-2 md:px-6 py-3 md:py-4 text-right whitespace-nowrap">
                         {user.latest_report_date 
                           ? new Date(user.latest_report_date).toLocaleString('he-IL', {
                               year: 'numeric',
@@ -1085,7 +1087,9 @@ export default function AvailabilityDashboard() {
                   );
                 })}
               </tbody>
-            </table>
+                </table>
+              </div>
+            </div>
             {users.length === 0 && (
               <div className="p-8 text-center text-gray-500">אין משתמשים להצגה</div>
             )}
