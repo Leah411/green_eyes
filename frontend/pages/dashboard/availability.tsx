@@ -706,46 +706,20 @@ export default function AvailabilityDashboard() {
     }
   };
   
-  // Get available options based on hierarchical selections
-  // יחידה -> רק הענפים שתחתיה
-  // ענף -> רק המדורים שתחתיו
-  // מדור -> רק הצוותים שתחתיו
+  // Get available options - always show all options regardless of filtering
+  // הרשימות הנפתחות תמיד מציגות את כל האפשרויות, גם כשמסננים
   const getAvailableBranches = () => {
-    // אם נבחרו יחידות - הצג רק את הענפים שתחתיהן
-    if (selectedUnits.size > 0) {
-      const selectedUnitsList = Array.from(selectedUnits);
-      return branches.filter(b => {
-        // בדוק אם הענף שייך ישירות ליחידה שנבחרה
-        return selectedUnitsList.includes(b.parent);
-      });
-    }
-    // אם לא נבחרו יחידות - הצג את כל הענפים
+    // תמיד הצג את כל הענפים, ללא קשר לסינון
     return branches;
   };
   
   const getAvailableSections = () => {
-    // אם נבחרו ענפים - הצג רק את המדורים שתחתיהם
-    if (selectedBranches.size > 0) {
-      const selectedBranchesList = Array.from(selectedBranches);
-      return sections.filter(s => {
-        // בדוק אם המדור שייך ישירות לענף שנבחר
-        return selectedBranchesList.includes(s.parent);
-      });
-    }
-    // אם לא נבחרו ענפים - הצג את כל המדורים
+    // תמיד הצג את כל המדורים, ללא קשר לסינון
     return sections;
   };
   
   const getAvailableTeams = () => {
-    // אם נבחרו מדורים - הצג רק את הצוותים שתחתיהם
-    if (selectedSections.size > 0) {
-      const selectedSectionsList = Array.from(selectedSections);
-      return teams.filter(t => {
-        // בדוק אם הצוות שייך ישירות למדור שנבחר
-        return selectedSectionsList.includes(t.parent);
-      });
-    }
-    // אם לא נבחרו מדורים - הצג את כל הצוותים
+    // תמיד הצג את כל הצוותים, ללא קשר לסינון
     return teams;
   };
 
