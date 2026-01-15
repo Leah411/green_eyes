@@ -191,37 +191,30 @@ export default function AvailabilityDashboard() {
       const usersRes = await api.listApprovedUsers();
       const allUsers = usersRes.data.results || usersRes.data || [];
       
-      // Build filter based on hierarchy (most specific/deepest level wins)
+      // Build filter based on hierarchy (most specific wins)
       // Hierarchy: Team > Section > Branch > Unit
-      // Logic: Use the most specific level, show union of all selections at that level, only direct matches (no descendants)
       let selectedUnitIds: number[] = [];
-      let filterLevel: 'teams' | 'sections' | 'branches' | 'units' | 'none' = 'none';
 
       if (selectedTeams.size > 0) {
-        // Most specific: show only users from selected teams (direct match only, no descendants)
+        // Most specific: teams only
         selectedUnitIds = Array.from(selectedTeams);
-        filterLevel = 'teams';
       } else if (selectedSections.size > 0) {
-        // Show users from selected sections (direct match only, no descendants)
+        // Sections + their descendants
         selectedUnitIds = Array.from(selectedSections);
-        filterLevel = 'sections';
       } else if (selectedBranches.size > 0) {
-        // Show users from selected branches (direct match only, no descendants)
+        // Branches + their descendants
         selectedUnitIds = Array.from(selectedBranches);
-        filterLevel = 'branches';
       } else if (selectedUnits.size > 0) {
-        // Least specific: show users from selected units (direct match only, no descendants)
+        // Least specific: units + their descendants
         selectedUnitIds = Array.from(selectedUnits);
-        filterLevel = 'units';
       }
 
-      console.log('Filter hierarchy applied:', {
-        selectedTeams: selectedTeams.size,
-        selectedSections: selectedSections.size,
-        selectedBranches: selectedBranches.size,
-        selectedUnits: selectedUnits.size,
-        finalSelectedIds: selectedUnitIds,
-        filterLevel: filterLevel
+      console.log('Filter hierarchy:', {
+        teams: selectedTeams.size,
+        sections: selectedSections.size,
+        branches: selectedBranches.size,
+        units: selectedUnits.size,
+        finalSelectedIds: selectedUnitIds
       });
       
       // Use old selectedUnit for backward compatibility, or new filter
@@ -243,18 +236,32 @@ export default function AvailabilityDashboard() {
       });
       
       // Filter users by selected units/branches/sections/teams
-      // אם בוחרים רק ענף - מסתננים משתמשים שיש להם את הענף הזה ב-DB
-      // אם בוחרים ענף + מדור - מסתננים משתמשים שיש להם גם את הענף וגם את המדור
-      // אם בוחרים ענף + מדור + צוות - מסתננים משתמשים שיש להם את כל השלושה
       let usersToShow = allUsers;
       
-      if ((selectedBranches.size > 0 || selectedSections.size > 0 || selectedTeams.size > 0) && allUnits.length > 0) {
-        console.log('Filtering users by hierarchical structure:', {
-          selectedBranches: Array.from(selectedBranches),
-          selectedSections: Array.from(selectedSections),
-          selectedTeams: Array.from(selectedTeams),
-          totalUsers: allUsers.length,
-          allUnitsCount: allUnits.length
+      if (selectedUnitIds.length > 0 && allUnits.length > 0) {
+        // Build a set of all relevant unit IDs (selected units themselves + all their descendants)
+        // This allows filtering users who belong to any unit in the selected hierarchy
+        const relevantUnitIds = new Set<number>(selectedUnitIds);
+        
+        // Add all descendants of selected units (children, grandchildren, etc.)
+        const addDescendants = (unitId: number) => {
+          const children = allUnits.filter(u => {
+            const parentId = typeof u.parent === 'object' ? u.parent?.id : u.parent;
+            return parentId === unitId;
+          });
+          children.forEach(child => {
+            relevantUnitIds.add(child.id);
+            addDescendants(child.id); // Recursively add descendants
+          });
+        };
+        
+        // Add descendants for all selected units
+        selectedUnitIds.forEach(id => addDescendants(id));
+        
+        console.log('Filtering users:', {
+          selectedUnitIds: Array.from(selectedUnitIds),
+          relevantUnitIds: Array.from(relevantUnitIds),
+          totalUsers: allUsers.length
         });
         
         usersToShow = allUsers.filter((user: any) => {
@@ -265,85 +272,9 @@ export default function AvailabilityDashboard() {
           
           if (!userUnitId) return false;
           
-          // Find the user's unit object
-          const userUnit = allUnits.find((u: any) => u.id === userUnitId);
-          if (!userUnit) return false;
-          
-          // Helper function to get all ancestors of a unit
-          const getAncestors = (unitId: number): number[] => {
-            const ancestors: number[] = [];
-            let current = allUnits.find((u: any) => u.id === unitId);
-            while (current && current.parent) {
-              const parentId = typeof current.parent === 'object' ? current.parent?.id : current.parent;
-              if (parentId) {
-                ancestors.push(parentId);
-                current = allUnits.find((u: any) => u.id === parentId);
-              } else {
-                break;
-              }
-            }
-            return ancestors;
-          };
-          
-          // Get all ancestors of the user's unit
-          const userUnitAncestors = getAncestors(userUnitId);
-          const userUnitHierarchy = [userUnitId, ...userUnitAncestors];
-          
-          // Check if user matches all selected levels
-          // If teams are selected, user must be in one of the selected teams
-          if (selectedTeams.size > 0) {
-            if (!selectedTeams.has(userUnitId)) return false;
-            // Also check that the team's ancestors match selected sections and branches
-            if (selectedSections.size > 0) {
-              const userSection = userUnitAncestors.find((id: number) => {
-                const unit = allUnits.find((u: any) => u.id === id);
-                return unit && unit.unit_type === 'section';
-              });
-              if (!userSection || !selectedSections.has(userSection)) return false;
-            }
-            if (selectedBranches.size > 0) {
-              const userBranch = userUnitAncestors.find((id: number) => {
-                const unit = allUnits.find((u: any) => u.id === id);
-                return unit && unit.unit_type === 'branch';
-              });
-              if (!userBranch || !selectedBranches.has(userBranch)) return false;
-            }
-            return true;
-          }
-          
-          // If sections are selected, user must be in one of the selected sections or their teams
-          if (selectedSections.size > 0) {
-            const userSection = userUnitHierarchy.find((id: number) => {
-              const unit = allUnits.find((u: any) => u.id === id);
-              return unit && unit.unit_type === 'section';
-            });
-            if (!userSection || !selectedSections.has(userSection)) return false;
-            // Also check branches if selected
-            if (selectedBranches.size > 0) {
-              const userBranch = userUnitAncestors.find((id: number) => {
-                const unit = allUnits.find((u: any) => u.id === id);
-                return unit && unit.unit_type === 'branch';
-              });
-              if (!userBranch || !selectedBranches.has(userBranch)) return false;
-            }
-            return true;
-          }
-          
-          // If only branches are selected, user must be in one of the selected branches or their descendants
-          if (selectedBranches.size > 0) {
-            const userBranch = userUnitHierarchy.find((id: number) => {
-              const unit = allUnits.find((u: any) => u.id === id);
-              return unit && unit.unit_type === 'branch';
-            });
-            return userBranch ? selectedBranches.has(userBranch) : false;
-          }
-          
-          return false;
+          // Check if user's unit is in the relevant units set (selected units or their descendants)
+          return relevantUnitIds.has(userUnitId);
         });
-        
-        console.log('Filtered users count:', usersToShow.length, 'out of', allUsers.length);
-      } else if (selectedUnitIds.length > 0 && allUnits.length === 0) {
-        console.warn('Cannot filter: allUnits not loaded yet');
       }
       
       // Create unfiltered usersWithStatus first (before filtering) - this is our "original" state
