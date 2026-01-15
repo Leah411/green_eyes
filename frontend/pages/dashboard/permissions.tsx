@@ -463,19 +463,19 @@ export default function PermissionsDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex w-full overflow-x-hidden" dir="rtl">
       {/* Menu Icon */}
       <MenuIcon onClick={() => setShowSidebar(!showSidebar)} isOpen={showSidebar} />
       
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'md:mr-80' : ''}`}>
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-green-600">ניהול משתמשים</h1>
-            <div className="flex gap-2">
+      <div className={`flex-1 transition-all duration-300 w-full min-w-0 ${showSidebar ? 'md:mr-80' : ''}`}>
+        <header className="bg-white shadow sticky top-0 z-40 w-full">
+          <div className="max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">ניהול משתמשים</h1>
+            <div className="flex gap-2 w-full sm:w-auto">
               <button
                 onClick={() => router.push('/dashboard/manager')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300 w-full sm:w-auto"
               >
                 חזרה לדשבורד
               </button>
@@ -483,72 +483,74 @@ export default function PermissionsDashboard() {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        <main className="max-w-7xl mx-auto px-2 md:px-4 py-4 md:py-8 space-y-4 md:space-y-8 w-full">
           {/* Top Section - Access Requests */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-right">בקשות כניסה</h2>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-3 md:p-6 border-b">
+              <h2 className="text-base md:text-xl font-semibold text-right">בקשות כניסה</h2>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-2 md:mx-0">
               {accessRequests.length === 0 ? (
-                <div className="p-6 text-center text-gray-500">
+                <div className="p-4 md:p-6 text-center text-gray-500 text-sm md:text-base">
                   אין בקשות חדשות
                 </div>
               ) : (
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">אימייל</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">טלפון</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תאריך בקשה</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {accessRequests.map((request) => (
-                      <tr key={request.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-right">{request.user_email || request.user?.email}</td>
-                        <td className="px-6 py-4 text-right">
-                          {request.user?.first_name || ''} {request.user?.last_name || ''}
-                        </td>
-                        <td className="px-6 py-4 text-right">{request.user?.phone || '-'}</td>
-                        <td className="px-6 py-4 text-right">
-                          {new Date(request.submitted_at).toLocaleDateString('he-IL')}
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => openRequestForm(request)}
-                            className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
-                          >
-                            אישור בקשה
-                          </button>
-                        </td>
+                <div className="inline-block min-w-full align-middle">
+                  <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '600px' }}>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">אימייל</th>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">שם מלא</th>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">טלפון</th>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">תאריך בקשה</th>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">פעולות</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {accessRequests.map((request) => (
+                        <tr key={request.id} className="hover:bg-gray-50">
+                          <td className="px-2 md:px-6 py-2 md:py-4 text-right text-xs sm:text-sm md:text-base whitespace-nowrap">{request.user_email || request.user?.email}</td>
+                          <td className="px-2 md:px-6 py-2 md:py-4 text-right text-xs sm:text-sm md:text-base whitespace-nowrap">
+                            {request.user?.first_name || ''} {request.user?.last_name || ''}
+                          </td>
+                          <td className="px-2 md:px-6 py-2 md:py-4 text-right text-xs sm:text-sm md:text-base whitespace-nowrap">{request.user?.phone || '-'}</td>
+                          <td className="px-2 md:px-6 py-2 md:py-4 text-right text-xs sm:text-sm md:text-base whitespace-nowrap">
+                            {new Date(request.submitted_at).toLocaleDateString('he-IL')}
+                          </td>
+                          <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => openRequestForm(request)}
+                              className="bg-orange-600 text-white px-2 md:px-4 py-1 md:py-2 rounded text-xs md:text-base hover:bg-orange-700 w-full sm:w-auto"
+                            >
+                              אישור בקשה
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
 
           {/* Bottom Section - Existing Users */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-right">רשימת המשתמשים הקיימים במערכת</h2>
-                <div className="w-64">
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-3 md:p-6 border-b">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <h2 className="text-base md:text-xl font-semibold text-right">רשימת המשתמשים הקיימים במערכת</h2>
+                <div className="w-full sm:w-64">
                   <input
                     type="text"
                     placeholder="חפש משתמש..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-md text-right focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-2 md:mx-0">
               {(() => {
                 const filteredUsers = approvedUsers.filter((user) => {
                   if (!searchQuery.trim()) return true;
@@ -574,37 +576,38 @@ export default function PermissionsDashboard() {
 
                 if (filteredUsers.length === 0) {
                   return (
-                <div className="p-6 text-center text-gray-500">
+                <div className="p-4 md:p-6 text-center text-gray-500 text-sm md:text-base">
                       {searchQuery ? 'לא נמצאו משתמשים התואמים לחיפוש' : 'אין משתמשים במערכת'}
                 </div>
                   );
                 }
 
                 return (
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">אימייל</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תפקיד</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">יחידה</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
+                <div className="inline-block min-w-full align-middle">
+                  <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '800px' }}>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">אימייל</th>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">שם מלא</th>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">תפקיד</th>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">יחידה</th>
+                        <th className="px-2 md:px-6 py-2 md:py-3 text-right text-[10px] sm:text-xs font-medium text-gray-500 uppercase whitespace-nowrap">פעולות</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
                       {filteredUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-right">{user.email}</td>
+                        <td className="px-2 md:px-6 py-2 md:py-4 text-right text-xs sm:text-sm md:text-base whitespace-nowrap">{user.email}</td>
                         <td 
-                          className="px-6 py-4 text-right cursor-pointer hover:text-green-600 hover:underline"
+                          className="px-2 md:px-6 py-2 md:py-4 text-right cursor-pointer hover:text-green-600 hover:underline text-xs sm:text-sm md:text-base whitespace-nowrap"
                           onClick={() => openUserEdit(user)}
                         >
                           {user.first_name || ''} {user.last_name || ''}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-2 md:px-6 py-2 md:py-4 text-right text-xs sm:text-sm md:text-base whitespace-nowrap">
                           {roles.find(r => r.value === user.profile?.role)?.label || user.profile?.role || 'משתמש'}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-2 md:px-6 py-2 md:py-4 text-right text-xs sm:text-sm md:text-base">
                           {(() => {
                             const unitId = user.profile?.unit;
                             if (!unitId) return '-';
@@ -644,17 +647,17 @@ export default function PermissionsDashboard() {
                             return path.length > 0 ? path.join(' > ') : (user.profile?.unit_name || user.profile?.unit?.name || '-');
                           })()}
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2 justify-end">
+                        <td className="px-2 md:px-6 py-2 md:py-4 whitespace-nowrap">
+                          <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 justify-end">
                             <button
                               onClick={() => openUserEdit(user)}
-                              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                              className="bg-green-600 text-white px-2 md:px-4 py-1 md:py-2 rounded text-xs md:text-base hover:bg-green-700"
                             >
                               שינוי הרשאות
                             </button>
                             <button
                               onClick={() => handleDeleteUser(user.id, user.username)}
-                              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                              className="bg-red-600 text-white px-2 md:px-4 py-1 md:py-2 rounded text-xs md:text-base hover:bg-red-700"
                               title="מחק משתמש"
                             >
                               🗑️
@@ -665,6 +668,7 @@ export default function PermissionsDashboard() {
                     ))}
                   </tbody>
                 </table>
+                </div>
                 );
               })()}
             </div>
@@ -677,12 +681,12 @@ export default function PermissionsDashboard() {
 
       {/* Request Form Modal */}
       {showRequestForm && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-right">פרטי המשתמש החדש</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4" dir="rtl">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto">
+            <div className="p-3 md:p-6 border-b sticky top-0 bg-white z-10">
+              <h2 className="text-base md:text-xl font-semibold text-right">פרטי המשתמש החדש</h2>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-3 md:p-6 space-y-3 md:space-y-4">
               {/* Display user registration data */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -763,16 +767,16 @@ export default function PermissionsDashboard() {
               </div>
               
               {/* Action buttons */}
-              <div className="flex gap-4 justify-end pt-4 border-t">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end pt-4 border-t">
                 <button
                   onClick={handleApproveRequest}
-                  className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-semibold"
+                  className="bg-green-600 text-white px-4 md:px-6 py-2 rounded hover:bg-green-700 font-semibold text-sm md:text-base w-full sm:w-auto"
                 >
                   אשר
                 </button>
                 <button
                   onClick={handleRejectRequest}
-                  className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 font-semibold"
+                  className="bg-red-600 text-white px-4 md:px-6 py-2 rounded hover:bg-red-700 font-semibold text-sm md:text-base w-full sm:w-auto"
                 >
                   דחה בקשה
                 </button>
@@ -781,7 +785,7 @@ export default function PermissionsDashboard() {
                     setShowRequestForm(false);
                     setSelectedRequest(null);
                   }}
-                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+                  className="bg-gray-300 text-gray-700 px-4 md:px-6 py-2 rounded hover:bg-gray-400 text-sm md:text-base w-full sm:w-auto"
                 >
                   ביטול
                 </button>
@@ -793,12 +797,12 @@ export default function PermissionsDashboard() {
 
       {/* User Edit Modal */}
       {showUserEdit && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-right">פרטי המשתמש</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4" dir="rtl">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[95vh] overflow-y-auto">
+            <div className="p-3 md:p-6 border-b sticky top-0 bg-white z-10">
+              <h2 className="text-base md:text-xl font-semibold text-right">פרטי המשתמש</h2>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-3 md:p-6 space-y-3 md:space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משתמש:</label>
@@ -1022,7 +1026,7 @@ export default function PermissionsDashboard() {
                 </div>
               </div>
               
-              <div className="flex gap-4 justify-end pt-4 border-t">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end pt-4 border-t">
                 {!isEditingUser ? (
                   <>
                     <button
@@ -1033,7 +1037,7 @@ export default function PermissionsDashboard() {
                         }
                         setIsEditingUser(true);
                       }}
-                      className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold"
+                      className="bg-blue-600 text-white px-4 md:px-6 py-2 rounded hover:bg-blue-700 font-semibold text-sm md:text-base w-full sm:w-auto"
                     >
                       עריכה
                     </button>
@@ -1043,7 +1047,7 @@ export default function PermissionsDashboard() {
                         setSelectedUser(null);
                         setIsEditingUser(false);
                       }}
-                      className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+                      className="bg-gray-300 text-gray-700 px-4 md:px-6 py-2 rounded hover:bg-gray-400 text-sm md:text-base w-full sm:w-auto"
                     >
                       סגור
                     </button>
@@ -1052,7 +1056,7 @@ export default function PermissionsDashboard() {
                   <>
                     <button
                       onClick={handleSaveUserEdit}
-                      className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-semibold"
+                      className="bg-green-600 text-white px-4 md:px-6 py-2 rounded hover:bg-green-700 font-semibold text-sm md:text-base w-full sm:w-auto"
                     >
                       שמור שינויים
                     </button>
@@ -1073,7 +1077,7 @@ export default function PermissionsDashboard() {
                           unit_id: currentUnitId || null,
                         });
                       }}
-                      className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+                      className="bg-gray-300 text-gray-700 px-4 md:px-6 py-2 rounded hover:bg-gray-400 text-sm md:text-base w-full sm:w-auto"
                     >
                       ביטול
                     </button>

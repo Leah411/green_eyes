@@ -329,7 +329,7 @@ export default function OrganizationalStructure() {
   };
 
   const renderUnit = (unit: any, level: number = 0) => {
-    const indent = level * 20;
+    const indent = level * 15;
     const hasPendingChanges = pendingChanges.has(unit.id);
     const isDragged = draggedUnit?.id === unit.id;
     
@@ -340,18 +340,18 @@ export default function OrganizationalStructure() {
           onDragStart={(e) => handleDragStart(e, unit)}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, unit)}
-          className={`bg-white border rounded p-4 flex justify-between items-center cursor-move transition-all ${
+          className={`bg-white border rounded p-2 md:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 cursor-move transition-all ${
             isDragged ? 'opacity-50' : ''
           } ${hasPendingChanges ? 'border-orange-500 border-2' : 'border-gray-200'} hover:border-green-400 hover:shadow-md`}
         >
-          <div className="flex items-center gap-2 flex-1">
-            <div className="text-gray-400 text-xl">⋮⋮</div>
-          <div>
-              <div className="font-semibold text-lg">{unit.name_he || unit.name}</div>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="text-gray-400 text-base md:text-xl flex-shrink-0">⋮⋮</div>
+          <div className="min-w-0 flex-1">
+              <div className="font-semibold text-sm md:text-lg break-words">{unit.name_he || unit.name}</div>
               {unit.name_he && unit.name !== unit.name_he && (
-                <div className="text-sm text-gray-500">{unit.name}</div>
+                <div className="text-xs sm:text-sm text-gray-500 break-words">{unit.name}</div>
               )}
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
               {unit.unit_type === 'unit' && 'יחידה'}
               {unit.unit_type === 'branch' && 'ענף'}
               {unit.unit_type === 'section' && 'מדור'}
@@ -361,7 +361,7 @@ export default function OrganizationalStructure() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2 w-full sm:w-auto">
             <button
               onClick={() => {
                 setEditingUnit(unit);
@@ -374,13 +374,13 @@ export default function OrganizationalStructure() {
                 });
                 setShowAddForm(true);
               }}
-              className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+              className="bg-blue-600 text-white px-2 md:px-3 py-1 rounded text-xs sm:text-sm hover:bg-blue-700 flex-1 sm:flex-none"
             >
               ערוך
             </button>
             <button
               onClick={() => handleDelete(unit.id)}
-              className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+              className="bg-red-600 text-white px-2 md:px-3 py-1 rounded text-xs sm:text-sm hover:bg-red-700 flex-1 sm:flex-none"
             >
               מחק
             </button>
@@ -398,19 +398,19 @@ export default function OrganizationalStructure() {
   const tree = buildTree(units);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex w-full overflow-x-hidden" dir="rtl">
       {/* Menu Icon */}
       <MenuIcon onClick={() => setShowSidebar(!showSidebar)} isOpen={showSidebar} />
       
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'md:mr-80' : ''}`}>
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-green-600">סידור מבנה</h1>
-          <div className="flex gap-2">
+      <div className={`flex-1 transition-all duration-300 w-full min-w-0 ${showSidebar ? 'md:mr-80' : ''}`}>
+      <header className="bg-white shadow sticky top-0 z-40 w-full">
+        <div className="max-w-7xl mx-auto px-2 md:px-4 py-2 md:py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">סידור מבנה</h1>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
                 onClick={() => router.push('/home')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300 w-full sm:w-auto"
               >
                 חזרה לדשבורד
               </button>
@@ -418,7 +418,7 @@ export default function OrganizationalStructure() {
                 <button
                   onClick={handleSaveChanges}
                   disabled={isSaving}
-                  className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                  className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 w-full sm:w-auto"
                 >
                   {isSaving ? 'שומר...' : `שמור שינויים (${pendingChanges.size})`}
                 </button>
@@ -429,7 +429,7 @@ export default function OrganizationalStructure() {
                 setFormData({ name: '', name_he: '', unit_type: 'unit', parent: null, code: '' });
                 setShowAddForm(true);
               }}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-green-600 text-white rounded hover:bg-green-700 w-full sm:w-auto"
             >
               הוסף יחידה
             </button>
@@ -437,13 +437,13 @@ export default function OrganizationalStructure() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-2 md:px-4 py-4 md:py-8 w-full overflow-x-auto">
         {showAddForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4 text-right">
+          <div className="bg-white rounded-lg shadow p-3 md:p-6 mb-4 md:mb-6">
+            <h2 className="text-base md:text-xl font-semibold mb-3 md:mb-4 text-right">
               {editingUnit ? 'ערוך יחידה' : 'הוסף יחידה חדשה'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
               <div>
                 <label className="block text-right text-sm font-medium mb-1">שם (אנגלית)</label>
                 <input
@@ -503,20 +503,20 @@ export default function OrganizationalStructure() {
                   className="w-full px-4 py-2 border rounded-lg text-right"
                 />
               </div>
-              <div className="flex gap-4 justify-end">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddForm(false);
                     setEditingUnit(null);
                   }}
-                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  className="px-4 md:px-6 py-2 text-sm md:text-base bg-gray-300 text-gray-700 rounded hover:bg-gray-400 w-full sm:w-auto"
                 >
                   ביטול
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-4 md:px-6 py-2 text-sm md:text-base bg-green-600 text-white rounded hover:bg-green-700 w-full sm:w-auto"
                 >
                   שמור
                 </button>
@@ -525,19 +525,19 @@ export default function OrganizationalStructure() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-right">מבנה ארגוני</h2>
-            <div className="text-sm text-gray-600 text-right">
+        <div className="bg-white rounded-lg shadow p-3 md:p-6 overflow-x-auto">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 md:mb-4">
+            <h2 className="text-base md:text-xl font-semibold text-right">מבנה ארגוני</h2>
+            <div className="text-xs sm:text-sm text-gray-600 text-right">
               💡 גרור יחידות כדי לשנות את המיקום שלהן
             </div>
           </div>
           <div
             onDragOver={handleDragOver}
             onDrop={handleDropOnRoot}
-            className="min-h-[200px] p-4 border-2 border-dashed border-gray-300 rounded-lg mb-4"
+            className="min-h-[150px] md:min-h-[200px] p-3 md:p-4 border-2 border-dashed border-gray-300 rounded-lg mb-3 md:mb-4"
           >
-            <div className="text-sm text-gray-500 text-center mb-2">גרור לכאן כדי להעביר לרמה הראשית</div>
+            <div className="text-xs sm:text-sm text-gray-500 text-center mb-2">גרור לכאן כדי להעביר לרמה הראשית</div>
           </div>
           {tree.map((unit) => renderUnit(unit))}
           {tree.length === 0 && (
