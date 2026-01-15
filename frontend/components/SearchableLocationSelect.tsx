@@ -15,6 +15,7 @@ interface SearchableLocationSelectProps {
   onChange: (locationId: number | null) => void;
   placeholder?: string;
   className?: string;
+  required?: boolean;
 }
 
 export default function SearchableLocationSelect({
@@ -22,6 +23,7 @@ export default function SearchableLocationSelect({
   onChange,
   placeholder = '-- בחר עיר --',
   className = '',
+  required = false,
 }: SearchableLocationSelectProps) {
   const [locations, setLocations] = useState<Location[]>([]);
   const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
@@ -157,6 +159,7 @@ export default function SearchableLocationSelect({
           placeholder={placeholder}
           className="w-full px-4 py-2 border rounded-lg text-right pr-10"
           dir="rtl"
+          required={required}
         />
         {selectedLocation && (
           <button

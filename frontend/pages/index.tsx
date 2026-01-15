@@ -648,6 +648,7 @@ export default function Home() {
                 value={cityId}
                 onChange={setCityId}
                 placeholder="חפש עיר או ישוב..."
+                required
               />
             </div>
 
