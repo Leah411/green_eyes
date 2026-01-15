@@ -242,9 +242,9 @@ export default function Home() {
     // Use the most specific unit selected (team > section > branch > unit)
     const finalUnitId = teamId || sectionId || branchId || unitId;
     
-    // Validate unit hierarchy is fully selected
-    if (!finalUnitId || !unitId || !branchId || !sectionId || !teamId) {
-      setError('יש לבחור יחידה, ענף, מדור וצוות');
+    // Validate unit hierarchy is fully selected (team is optional)
+    if (!finalUnitId || !unitId || !branchId || !sectionId) {
+      setError('יש לבחור יחידה, ענף ומדור');
       setLoading(false);
       return;
     }
@@ -567,12 +567,11 @@ export default function Home() {
 
             <div>
               <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-                צוות <span className="text-red-500">*</span>
+                צוות
               </label>
               <select
                 value={teamId || ''}
                 onChange={handleTeamChange}
-                required
                 className="w-full px-4 py-2 border rounded-lg text-right"
                 disabled={!sectionId}
               >
