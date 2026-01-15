@@ -261,8 +261,8 @@ export default function ProfilePage() {
 
     // Validate all required fields
     if (!formData.first_name || !formData.last_name || !formData.email || 
-        !formData.phone) {
-      setError('כל השדות חייבים להיות ממולאים');
+        !formData.phone || !formData.address || !formData.city_id) {
+      setError('כל השדות המסומנים ב-* חייבים להיות ממולאים');
       setSaving(false);
       return;
     }
@@ -514,7 +514,7 @@ export default function ProfilePage() {
 
           <div>
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-              כתובת מגורים
+              כתובת מגורים <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -522,18 +522,20 @@ export default function ProfilePage() {
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               className="w-full px-4 py-2 border rounded-lg text-right"
               placeholder="הזן כתובת מגורים"
+              required
             />
           </div>
 
           <div>
             <label className="block text-right text-sm font-medium mb-2 text-gray-700">
-              עיר מגורים
+              עיר מגורים <span className="text-red-500">*</span>
             </label>
             <SearchableLocationSelect
               value={formData.city_id}
               onChange={(locationId) => setFormData({ ...formData, city_id: locationId })}
               placeholder="-- בחר עיר -- (הקלד כדי לחפש)"
               className="w-full"
+              required
             />
           </div>
 

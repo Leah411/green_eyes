@@ -119,8 +119,8 @@ class UserSignupSerializer(serializers.ModelSerializer):
         required=False,
         allow_blank=True
     )
-    address = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    city_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    address = serializers.CharField(write_only=True, required=True, allow_blank=False)
+    city_id = serializers.IntegerField(write_only=True, required=True, allow_null=False)
     contact_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     contact_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
