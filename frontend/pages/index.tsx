@@ -269,7 +269,6 @@ export default function Home() {
       setFirstName('');
       setLastName('');
       setPhone('');
-      setIdNumber('');
       setUnitId(null);
       setBranchId(null);
       setSectionId(null);
