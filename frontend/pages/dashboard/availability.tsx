@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import api from '../../lib/api';
 import Cookies from 'js-cookie';
 import Sidebar from '../../components/Sidebar';
+import MenuIcon from '../../components/MenuIcon';
 import * as XLSX from 'xlsx';
 
 export default function AvailabilityDashboard() {
@@ -728,6 +729,9 @@ export default function AvailabilityDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">
+      {/* Menu Icon */}
+      <MenuIcon onClick={() => setShowSidebar(!showSidebar)} isOpen={showSidebar} />
+      
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'md:mr-80' : ''}`}>
         <header className="bg-white shadow">
@@ -736,7 +740,7 @@ export default function AvailabilityDashboard() {
             <div className="flex flex-wrap gap-2 w-full md:w-auto">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                className="px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                className="hidden md:block px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
                 {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
               </button>

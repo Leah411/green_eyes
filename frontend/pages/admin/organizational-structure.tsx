@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import api from '../../lib/api';
 import Cookies from 'js-cookie';
 import Sidebar from '../../components/Sidebar';
+import MenuIcon from '../../components/MenuIcon';
 
 export default function OrganizationalStructure() {
   const router = useRouter();
@@ -398,15 +399,18 @@ export default function OrganizationalStructure() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">
+      {/* Menu Icon */}
+      <MenuIcon onClick={() => setShowSidebar(!showSidebar)} isOpen={showSidebar} />
+      
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'mr-80' : ''}`}>
+      <div className={`flex-1 transition-all duration-300 ${showSidebar ? 'md:mr-80' : ''}`}>
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold text-green-600">סידור מבנה</h1>
           <div className="flex gap-2">
             <button
                 onClick={() => setShowSidebar(!showSidebar)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              className="hidden md:block px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
             >
                 {showSidebar ? 'הסתר תפריט' : 'הצג תפריט'}
             </button>
