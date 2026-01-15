@@ -245,6 +245,11 @@ export default function PermissionsDashboard() {
     setSelectedUser(user);
     setIsEditingUser(false);
     
+    // Ensure allUnits is loaded before opening edit
+    if (allUnits.length === 0) {
+      await loadAllUnits();
+    }
+    
     // Set initial editing data
     const profile = user.profile || {};
     const currentUnitId = typeof profile.unit === 'object' ? profile.unit.id : profile.unit;
@@ -923,7 +928,10 @@ export default function PermissionsDashboard() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
                         >
                           <option value="">-- בחר יחידה --</option>
-                          {allUnits.filter(u => u.unit_type === 'unit').map((unit) => (
+                          {(allUnits.length > 0 
+                            ? allUnits.filter(u => u.unit_type === 'unit')
+                            : units.filter(u => u.unit_type === 'unit')
+                          ).map((unit) => (
                             <option key={unit.id} value={unit.id}>
                               {unit.name_he || unit.name}
                             </option>
@@ -1018,7 +1026,13 @@ export default function PermissionsDashboard() {
                 {!isEditingUser ? (
                   <>
                     <button
-                      onClick={() => setIsEditingUser(true)}
+                      onClick={async () => {
+                        // Ensure allUnits is loaded before enabling edit mode
+                        if (allUnits.length === 0) {
+                          await loadAllUnits();
+                        }
+                        setIsEditingUser(true);
+                      }}
                       className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold"
                     >
                       עריכה

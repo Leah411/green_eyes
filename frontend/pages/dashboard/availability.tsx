@@ -224,14 +224,14 @@ export default function AvailabilityDashboard() {
       const reportsRes = await api.listReports(unitFilter ? { unit: unitFilter } : {});
       const reports = reportsRes.data.results || reportsRes.data || [];
       
-      // Create a map of user IDs to their latest report submitted_at (includes date and time)
+      // Create a map of user IDs to their latest report (includes full report data)
       const reportsByUser = new Map();
       reports.forEach((report: any) => {
-        const existingDateTime = reportsByUser.get(report.user);
+        const existingReport = reportsByUser.get(report.user);
         // Use submitted_at (DateTime) instead of date (Date only) to get time as well
         const reportDateTime = report.submitted_at || report.date;
-        if (!existingDateTime || new Date(reportDateTime) > new Date(existingDateTime)) {
-          reportsByUser.set(report.user, reportDateTime);
+        if (!existingReport || new Date(reportDateTime) > new Date(existingReport.submitted_at || existingReport.date)) {
+          reportsByUser.set(report.user, report);
         }
       });
       
@@ -277,10 +277,42 @@ export default function AvailabilityDashboard() {
         });
       }
       
+      // Helper function to check if user is in NOCOUT team
+      const isInNOCOUTTeam = (user: any, allUnits: any[]): boolean => {
+        const userUnitId = typeof user.profile?.unit === 'object' 
+          ? user.profile?.unit?.id 
+          : user.profile?.unit;
+        if (!userUnitId) return false;
+        
+        // Find the unit object
+        const userUnit = allUnits.find(u => u.id === userUnitId);
+        if (!userUnit) return false;
+        
+        // Check if unit name contains "NOCOUT" (case insensitive)
+        const unitName = (userUnit.name_he || userUnit.name || '').toLowerCase();
+        return unitName.includes('nocout');
+      };
+      
+      // Helper function to check if report matches special conditions
+      const isSpecialReport = (report: any, user: any, allUnits: any[]): boolean => {
+        if (!report) return false;
+        
+        // Check if status is 'available'
+        if (report.status !== 'available') return false;
+        
+        // Check if user is in NOCOUT team
+        if (!isInNOCOUTTeam(user, allUnits)) return false;
+        
+        // Check if location_text contains "גדעונים"
+        const locationText = (report.location_text || '').toLowerCase();
+        return locationText.includes('גדעונים');
+      };
+      
       // Create unfiltered usersWithStatus first (before filtering) - this is our "original" state
       const unfilteredUsersWithStatus = allUsers.map((user: any) => {
-        const latestReportDate = reportsByUser.get(user.id);
-        const hasFilledReport = !!latestReportDate;
+        const latestReport = reportsByUser.get(user.id);
+        const hasFilledReport = !!latestReport;
+        const isSpecial = isSpecialReport(latestReport, user, allUnits);
         
         return {
           user_id: user.id,
@@ -300,7 +332,8 @@ export default function AvailabilityDashboard() {
           } : null,
           status: hasFilledReport ? 'green' : 'red',
           has_filled_report: hasFilledReport,
-          latest_report_date: latestReportDate,
+          latest_report_date: latestReport?.submitted_at || latestReport?.date,
+          is_special: isSpecial, // Flag for special sorting and coloring
         };
       });
       
@@ -312,8 +345,9 @@ export default function AvailabilityDashboard() {
       
       // Merge filtered user data with report status
       let usersWithStatus = usersToShow.map((user: any) => {
-        const latestReportDate = reportsByUser.get(user.id);
-        const hasFilledReport = !!latestReportDate;
+        const latestReport = reportsByUser.get(user.id);
+        const hasFilledReport = !!latestReport;
+        const isSpecial = isSpecialReport(latestReport, user, allUnits);
         
         return {
           user_id: user.id,
@@ -333,8 +367,16 @@ export default function AvailabilityDashboard() {
           } : null,
           status: hasFilledReport ? 'green' : 'red',
           has_filled_report: hasFilledReport,
-          latest_report_date: latestReportDate,
+          latest_report_date: latestReport?.submitted_at || latestReport?.date,
+          is_special: isSpecial, // Flag for special sorting and coloring
         };
+      });
+      
+      // Sort: special reports first, then others
+      usersWithStatus.sort((a: any, b: any) => {
+        if (a.is_special && !b.is_special) return -1;
+        if (!a.is_special && b.is_special) return 1;
+        return 0; // Keep original order for others
       });
       
       // Don't filter by status here - will be done in display based on arrow clicks
@@ -534,7 +576,12 @@ export default function AvailabilityDashboard() {
     }
   };
 
-  const getRowColor = (status: string) => {
+  const getRowColor = (status: string, isSpecial?: boolean) => {
+    // Special reports get purple color
+    if (isSpecial) {
+      return 'bg-purple-200 hover:bg-purple-300';
+    }
+    
     switch (status) {
       case 'green':
         return 'bg-green-50 hover:bg-green-100';
@@ -1026,7 +1073,14 @@ export default function AvailabilityDashboard() {
                   // Filter by status if statusFilter is set
                   if (statusFilter === null) return true;
                   return user.status === statusFilter;
-                }).map((user) => {
+                })
+                .sort((a: any, b: any) => {
+                  // Special reports first, then others
+                  if (a.is_special && !b.is_special) return -1;
+                  if (!a.is_special && b.is_special) return 1;
+                  return 0; // Keep original order for others
+                })
+                .map((user) => {
                   const fullName = user.first_name && user.last_name 
                     ? `${user.first_name} ${user.last_name}` 
                     : user.username || '-';
@@ -1034,7 +1088,7 @@ export default function AvailabilityDashboard() {
                   return (
                     <tr 
                       key={user.user_id} 
-                      className={`transition-colors ${getRowColor(user.status)}`}
+                      className={`transition-colors ${getRowColor(user.status, user.is_special)}`}
                     >
                       <td className="px-1.5 sm:px-2 md:px-6 py-2 sm:py-3 md:py-4 text-right whitespace-nowrap">
                         <span className={`px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold border ${getStatusColor(user.status)}`}>
