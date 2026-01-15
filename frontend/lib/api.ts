@@ -235,6 +235,11 @@ class ApiClient {
     return this.client.patch(`/users/${userId}/update-permissions/`, data);
   }
 
+  async updateUser(userId: number, profileId: number, data: any) {
+    // Update user profile with all fields
+    return this.client.patch(`/profiles/${profileId}/`, data);
+  }
+
   async deleteUser(userId: number) {
     return this.client.delete(`/users/${userId}/`);
   }

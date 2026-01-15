@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import api from '../../lib/api';
 import Cookies from 'js-cookie';
 import Sidebar from '../../components/Sidebar';
+import SearchableLocationSelect from '../../components/SearchableLocationSelect';
 
 export default function PermissionsDashboard() {
   const router = useRouter();
@@ -27,6 +28,24 @@ export default function PermissionsDashboard() {
   // For user edit
   const [editingRole, setEditingRole] = useState<string>('');
   const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [editingUserData, setEditingUserData] = useState<any>({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city_id: null,
+    role: '',
+    unit_id: null,
+  });
+  const [selectedUnitId, setSelectedUnitId] = useState<number | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
 
   const roles = [
     { value: 'user', label: 'משתמש' },
@@ -135,10 +154,128 @@ export default function PermissionsDashboard() {
     setShowRequestForm(true);
   };
 
-  const openUserEdit = (user: any) => {
+  const loadBranches = async (parentId: number) => {
+    try {
+      const branchesRes = await api.getUnitsByParent(parentId, 'branch');
+      const branchesData = branchesRes.data.results || branchesRes.data || [];
+      setBranches(Array.isArray(branchesData) ? branchesData : []);
+    } catch (err) {
+      console.error('Failed to load branches:', err);
+      setBranches([]);
+    }
+  };
+
+  const loadSections = async (parentId: number) => {
+    try {
+      const sectionsRes = await api.getUnitsByParent(parentId, 'section');
+      const sectionsData = sectionsRes.data.results || sectionsRes.data || [];
+      setSections(Array.isArray(sectionsData) ? sectionsData : []);
+    } catch (err) {
+      console.error('Failed to load sections:', err);
+      setSections([]);
+    }
+  };
+
+  const loadTeams = async (parentId: number) => {
+    try {
+      const teamsRes = await api.getUnitsByParent(parentId, 'team');
+      const teamsData = teamsRes.data.results || teamsRes.data || [];
+      setTeams(Array.isArray(teamsData) ? teamsData : []);
+    } catch (err) {
+      console.error('Failed to load teams:', err);
+      setTeams([]);
+    }
+  };
+
+  const determineUnitHierarchy = async (unitId: number) => {
+    try {
+      const unitObj = allUnits.find(u => u.id === unitId);
+      if (!unitObj) return;
+
+      // Determine hierarchy level
+      if (unitObj.unit_type === 'unit') {
+        setSelectedUnitId(unitId);
+        await loadBranches(unitId);
+      } else if (unitObj.unit_type === 'branch') {
+        const parentUnit = allUnits.find(u => u.id === unitObj.parent);
+        if (parentUnit) {
+          setSelectedUnitId(parentUnit.id);
+          await loadBranches(parentUnit.id);
+        }
+        setSelectedBranchId(unitId);
+        await loadSections(unitId);
+      } else if (unitObj.unit_type === 'section') {
+        const parentBranch = allUnits.find(u => u.id === unitObj.parent);
+        if (parentBranch) {
+          const parentUnit = allUnits.find(u => u.id === parentBranch.parent);
+          if (parentUnit) {
+            setSelectedUnitId(parentUnit.id);
+            await loadBranches(parentUnit.id);
+          }
+          setSelectedBranchId(parentBranch.id);
+          await loadSections(parentBranch.id);
+        }
+        setSelectedSectionId(unitId);
+        await loadTeams(unitId);
+      } else if (unitObj.unit_type === 'team') {
+        const parentSection = allUnits.find(u => u.id === unitObj.parent);
+        if (parentSection) {
+          const parentBranch = allUnits.find(u => u.id === parentSection.parent);
+          if (parentBranch) {
+            const parentUnit = allUnits.find(u => u.id === parentBranch.parent);
+            if (parentUnit) {
+              setSelectedUnitId(parentUnit.id);
+              await loadBranches(parentUnit.id);
+            }
+            setSelectedBranchId(parentBranch.id);
+            await loadSections(parentBranch.id);
+          }
+          setSelectedSectionId(parentSection.id);
+          await loadTeams(parentSection.id);
+        }
+        setSelectedTeamId(unitId);
+      }
+    } catch (err) {
+      console.error('Failed to determine unit hierarchy:', err);
+    }
+  };
+
+  const openUserEdit = async (user: any) => {
     setSelectedUser(user);
-    setEditingRole(user.profile?.role || 'user');
-    setEditingUnitId(user.profile?.unit || null);
+    setIsEditingUser(false);
+    
+    // Set initial editing data
+    const profile = user.profile || {};
+    const currentUnitId = typeof profile.unit === 'object' ? profile.unit.id : profile.unit;
+    
+    setEditingUserData({
+      first_name: user.first_name || '',
+      last_name: user.last_name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      address: profile.address || '',
+      city_id: typeof profile.city === 'object' ? profile.city.id : profile.city || null,
+      role: profile.role || 'user',
+      unit_id: currentUnitId || null,
+    });
+    
+    setEditingRole(profile.role || 'user');
+    setEditingUnitId(currentUnitId || null);
+    
+    // Reset hierarchy
+    setSelectedUnitId(null);
+    setSelectedBranchId(null);
+    setSelectedSectionId(null);
+    setSelectedTeamId(null);
+    setBranches([]);
+    setSections([]);
+    setTeams([]);
+    
+    // Determine unit hierarchy if unit exists
+    if (currentUnitId) {
+      await determineUnitHierarchy(currentUnitId);
+    }
+    
     setShowUserEdit(true);
   };
 
@@ -178,6 +315,57 @@ export default function PermissionsDashboard() {
     }
   };
 
+  const handleUnitChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedUnitId = e.target.value ? Number(e.target.value) : null;
+    setSelectedUnitId(selectedUnitId);
+    setSelectedBranchId(null);
+    setSelectedSectionId(null);
+    setSelectedTeamId(null);
+    setBranches([]);
+    setSections([]);
+    setTeams([]);
+    
+    if (selectedUnitId) {
+      await loadBranches(selectedUnitId);
+    }
+    
+    setEditingUserData({ ...editingUserData, unit_id: selectedUnitId });
+  };
+
+  const handleBranchChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedBranchId = e.target.value ? Number(e.target.value) : null;
+    setSelectedBranchId(selectedBranchId);
+    setSelectedSectionId(null);
+    setSelectedTeamId(null);
+    setSections([]);
+    setTeams([]);
+    
+    if (selectedBranchId) {
+      await loadSections(selectedBranchId);
+    }
+    
+    setEditingUserData({ ...editingUserData, unit_id: selectedBranchId });
+  };
+
+  const handleSectionChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedSectionId = e.target.value ? Number(e.target.value) : null;
+    setSelectedSectionId(selectedSectionId);
+    setSelectedTeamId(null);
+    setTeams([]);
+    
+    if (selectedSectionId) {
+      await loadTeams(selectedSectionId);
+    }
+    
+    setEditingUserData({ ...editingUserData, unit_id: selectedSectionId });
+  };
+
+  const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedTeamId = e.target.value ? Number(e.target.value) : null;
+    setSelectedTeamId(selectedTeamId);
+    setEditingUserData({ ...editingUserData, unit_id: selectedTeamId });
+  };
+
   const handleUpdateUserPermissions = async () => {
     if (!selectedUser) return;
     try {
@@ -192,6 +380,56 @@ export default function PermissionsDashboard() {
       alert('הרשאות המשתמש עודכנו בהצלחה');
     } catch (err: any) {
       alert(err.response?.data?.error || 'שגיאה בעדכון ההרשאות');
+    }
+  };
+
+  const handleSaveUserEdit = async () => {
+    if (!selectedUser || !selectedUser.profile) return;
+    
+    // Validate required fields
+    if (!editingUserData.first_name || !editingUserData.last_name || 
+        !editingUserData.email || !editingUserData.phone) {
+      alert('כל השדות המסומנים ב-* חייבים להיות ממולאים');
+      return;
+    }
+
+    try {
+      // Determine the final unit ID (most specific selection)
+      const finalUnitId = selectedTeamId || selectedSectionId || selectedBranchId || selectedUnitId;
+      
+      const updateData: any = {
+        first_name: editingUserData.first_name,
+        last_name: editingUserData.last_name,
+        email: editingUserData.email,
+        phone: editingUserData.phone,
+        address: editingUserData.address,
+        city: editingUserData.city_id,
+        role: editingUserData.role,
+        unit: finalUnitId,
+      };
+      
+      await api.updateUser(selectedUser.id, selectedUser.profile.id, updateData);
+      
+      setIsEditingUser(false);
+      setShowUserEdit(false);
+      setSelectedUser(null);
+      loadData();
+      alert('פרטי המשתמש עודכנו בהצלחה');
+    } catch (err: any) {
+      console.error('Error updating user:', err);
+      const errorData = err.response?.data;
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          alert(errorData);
+        } else if (errorData.error) {
+          alert(errorData.error);
+        } else {
+          const firstError = Object.values(errorData)[0];
+          alert(Array.isArray(firstError) ? firstError[0] : String(firstError));
+        }
+      } else {
+        alert('שגיאה בעדכון פרטי המשתמש');
+      }
     }
   };
 
@@ -354,7 +592,10 @@ export default function PermissionsDashboard() {
                       {filteredUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 text-right">{user.email}</td>
-                        <td className="px-6 py-4 text-right">
+                        <td 
+                          className="px-6 py-4 text-right cursor-pointer hover:text-green-600 hover:underline"
+                          onClick={() => openUserEdit(user)}
+                        >
                           {user.first_name || ''} {user.last_name || ''}
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -550,124 +791,282 @@ export default function PermissionsDashboard() {
       {/* User Edit Modal */}
       {showUserEdit && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-right">שינוי הרשאות משתמש</h2>
+              <h2 className="text-xl font-semibold text-right">פרטי המשתמש</h2>
             </div>
             <div className="p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-right mb-4">פרטי המשתמש</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משתמש:</label>
                   <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.username}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">אימייל:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.email}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">אימייל {!isEditingUser && <span className="text-red-500">*</span>}:</label>
+                  {isEditingUser ? (
+                    <input
+                      type="email"
+                      value={editingUserData.email}
+                      onChange={(e) => setEditingUserData({ ...editingUserData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                      required
+                    />
+                  ) : (
+                    <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.email}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם פרטי:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.first_name || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם פרטי {!isEditingUser && <span className="text-red-500">*</span>}:</label>
+                  {isEditingUser ? (
+                    <input
+                      type="text"
+                      value={editingUserData.first_name}
+                      onChange={(e) => setEditingUserData({ ...editingUserData, first_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                      required
+                    />
+                  ) : (
+                    <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.first_name || '-'}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משפחה:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.last_name || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם משפחה {!isEditingUser && <span className="text-red-500">*</span>}:</label>
+                  {isEditingUser ? (
+                    <input
+                      type="text"
+                      value={editingUserData.last_name}
+                      onChange={(e) => setEditingUserData({ ...editingUserData, last_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                      required
+                    />
+                  ) : (
+                    <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.last_name || '-'}</p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.phone || '-'}</p>
+                  <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון {!isEditingUser && <span className="text-red-500">*</span>}:</label>
+                  {isEditingUser ? (
+                    <input
+                      type="tel"
+                      value={editingUserData.phone}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        if (value.length <= 10) {
+                          setEditingUserData({ ...editingUserData, phone: value });
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                      maxLength={10}
+                      required
+                    />
+                  ) : (
+                    <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.phone || '-'}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">כתובת:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.profile?.address || '-'}</p>
+                  {isEditingUser ? (
+                    <input
+                      type="text"
+                      value={editingUserData.address}
+                      onChange={(e) => setEditingUserData({ ...editingUserData, address: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                    />
+                  ) : (
+                    <p className="text-right bg-gray-50 p-2 rounded">{selectedUser.profile?.address || '-'}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 text-right mb-1">עיר:</label>
-                  <p className="text-right bg-gray-50 p-2 rounded">
-                    {selectedUser.profile?.city_name_he || selectedUser.profile?.city_name || selectedUser.profile?.city?.name_he || selectedUser.profile?.city?.name || '-'}
-                  </p>
+                  {isEditingUser ? (
+                    <SearchableLocationSelect
+                      value={editingUserData.city_id}
+                      onChange={(cityId) => setEditingUserData({ ...editingUserData, city_id: cityId })}
+                      placeholder="חפש עיר או ישוב..."
+                    />
+                  ) : (
+                    <p className="text-right bg-gray-50 p-2 rounded">
+                      {selectedUser.profile?.city_name_he || selectedUser.profile?.city_name || selectedUser.profile?.city?.name_he || selectedUser.profile?.city?.name || '-'}
+                    </p>
+                  )}
                 </div>
               </div>
               
               <div className="border-t pt-4 mt-4">
                 <h3 className="text-lg font-semibold text-right mb-4">הגדרות הרשאות</h3>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 text-right mb-1">תפקיד:</label>
-                    <select
-                      value={editingRole}
-                      onChange={(e) => setEditingRole(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
-                    >
-                      {roles.map((role) => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
+                    {isEditingUser ? (
+                      <select
+                        value={editingUserData.role}
+                        onChange={(e) => setEditingUserData({ ...editingUserData, role: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                      >
+                        {roles.map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-right bg-gray-50 p-2 rounded">
+                        {roles.find(r => r.value === selectedUser.profile?.role)?.label || selectedUser.profile?.role || 'משתמש'}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 text-right mb-1">יחידה:</label>
-                    <p className="text-right bg-gray-50 p-2 rounded">
-                      {(() => {
-                        const unitId = selectedUser.profile?.unit;
-                        if (!unitId) return 'ללא יחידה';
-                        
-                        // Get unit ID (can be number or object)
-                        const actualUnitId = typeof unitId === 'object' ? unitId.id : unitId;
-                        if (!actualUnitId) return selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה';
-                        
-                        // Find unit in allUnits
-                        const unitObj = allUnits.find(u => u.id === actualUnitId);
-                        if (!unitObj) return selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה';
-                        
-                        // Build hierarchy path: unit > branch > section > team
-                        const getUnitPath = (unit: any): string[] => {
-                          const path: string[] = [];
-                          let current = unit;
+                    {isEditingUser ? (
+                      <div className="space-y-2">
+                        <select
+                          value={selectedUnitId || ''}
+                          onChange={handleUnitChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                        >
+                          <option value="">-- בחר יחידה --</option>
+                          {units.map((unit) => (
+                            <option key={unit.id} value={unit.id}>
+                              {unit.name_he || unit.name}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedUnitId && (
+                          <select
+                            value={selectedBranchId || ''}
+                            onChange={handleBranchChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                          >
+                            <option value="">-- בחר ענף --</option>
+                            {branches.map((branch) => (
+                              <option key={branch.id} value={branch.id}>
+                                {branch.name_he || branch.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {selectedBranchId && (
+                          <select
+                            value={selectedSectionId || ''}
+                            onChange={handleSectionChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                          >
+                            <option value="">-- בחר מדור --</option>
+                            {sections.map((section) => (
+                              <option key={section.id} value={section.id}>
+                                {section.name_he || section.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {selectedSectionId && (
+                          <select
+                            value={selectedTeamId || ''}
+                            onChange={handleTeamChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
+                          >
+                            <option value="">-- בחר צוות --</option>
+                            {teams.map((team) => (
+                              <option key={team.id} value={team.id}>
+                                {team.name_he || team.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-right bg-gray-50 p-2 rounded">
+                        {(() => {
+                          const unitId = selectedUser.profile?.unit;
+                          if (!unitId) return 'ללא יחידה';
                           
-                          // Collect all ancestors
-                          while (current) {
-                            const name = current.name_he || current.name;
-                            path.unshift(name); // Add to beginning
+                          const actualUnitId = typeof unitId === 'object' ? unitId.id : unitId;
+                          if (!actualUnitId) return selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה';
+                          
+                          const unitObj = allUnits.find(u => u.id === actualUnitId);
+                          if (!unitObj) return selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה';
+                          
+                          const getUnitPath = (unit: any): string[] => {
+                            const path: string[] = [];
+                            let current = unit;
                             
-                            if (current.parent) {
-                              const parentId = typeof current.parent === 'object' 
-                                ? current.parent.id 
-                                : current.parent;
-                              current = allUnits.find(u => u.id === parentId);
-                            } else {
-                              current = null;
+                            while (current) {
+                              const name = current.name_he || current.name;
+                              path.unshift(name);
+                              
+                              if (current.parent) {
+                                const parentId = typeof current.parent === 'object' 
+                                  ? current.parent.id 
+                                  : current.parent;
+                                current = allUnits.find(u => u.id === parentId);
+                              } else {
+                                current = null;
+                              }
                             }
-                          }
+                            
+                            return path;
+                          };
                           
-                          return path;
-                        };
-                        
-                        const path = getUnitPath(unitObj);
-                        return path.length > 0 ? path.join(' > ') : (selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה');
-                      })()}
-                    </p>
+                          const path = getUnitPath(unitObj);
+                          return path.length > 0 ? path.join(' > ') : (selectedUser.profile?.unit_name || selectedUser.profile?.unit?.name_he || selectedUser.profile?.unit?.name || 'ללא יחידה');
+                        })()}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
               
               <div className="flex gap-4 justify-end pt-4 border-t">
-                <button
-                  onClick={handleUpdateUserPermissions}
-                  className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-semibold"
-                >
-                  שמור שינויים
-                </button>
-                <button
-                  onClick={() => {
-                    setShowUserEdit(false);
-                    setSelectedUser(null);
-                  }}
-                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
-                >
-                  ביטול
-                </button>
+                {!isEditingUser ? (
+                  <>
+                    <button
+                      onClick={() => setIsEditingUser(true)}
+                      className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-semibold"
+                    >
+                      עריכה
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUserEdit(false);
+                        setSelectedUser(null);
+                        setIsEditingUser(false);
+                      }}
+                      className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+                    >
+                      סגור
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleSaveUserEdit}
+                      className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-semibold"
+                    >
+                      שמור שינויים
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditingUser(false);
+                        // Reset to original data
+                        const profile = selectedUser.profile || {};
+                        const currentUnitId = typeof profile.unit === 'object' ? profile.unit.id : profile.unit;
+                        setEditingUserData({
+                          first_name: selectedUser.first_name || '',
+                          last_name: selectedUser.last_name || '',
+                          email: selectedUser.email || '',
+                          phone: selectedUser.phone || '',
+                          address: profile.address || '',
+                          city_id: typeof profile.city === 'object' ? profile.city.id : profile.city || null,
+                          role: profile.role || 'user',
+                          unit_id: currentUnitId || null,
+                        });
+                      }}
+                      className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+                    >
+                      ביטול
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
