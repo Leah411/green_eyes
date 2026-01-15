@@ -66,6 +66,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_username', 'user_email',
             'user_first_name', 'user_last_name', 'user_phone',
             'unit', 'unit_name', 'unit_name_he', 'role', 'role_display',
+            'service_type',
             'address', 'city', 'city_name', 'city_name_he',
             'contact_name', 'contact_phone',
             'created_at', 'updated_at'
@@ -112,6 +113,12 @@ class UserSignupSerializer(serializers.ModelSerializer):
         required=False,
         default='user'
     )
+    service_type = serializers.ChoiceField(
+        choices=Profile.SERVICE_TYPE_CHOICES,
+        write_only=True,
+        required=False,
+        allow_blank=True
+    )
     address = serializers.CharField(write_only=True, required=False, allow_blank=True)
     city_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     contact_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -122,7 +129,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
         fields = (
             'username', 'email', 'password', 'password2',
             'first_name', 'last_name', 'phone', 'unit_id', 'role',
-            'address', 'city_id', 'contact_name', 'contact_phone'
+            'service_type', 'address', 'city_id', 'contact_name', 'contact_phone'
         )
         extra_kwargs = {
             'username': {'required': False},  # Will be auto-generated from email
@@ -168,6 +175,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
         validated_data.pop('password2', None)
         unit_id = validated_data.pop('unit_id', None)
         role = validated_data.pop('role', 'user')
+        service_type = validated_data.pop('service_type', '')
         address = validated_data.pop('address', '')
         city_id = validated_data.pop('city_id', None)
         contact_name = validated_data.pop('contact_name', '')
@@ -204,6 +212,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
             user=user,
             unit=unit,
             role=role,
+            service_type=service_type,
             address=address,
             city=city,
             contact_name=contact_name,

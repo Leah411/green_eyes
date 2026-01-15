@@ -33,6 +33,7 @@ export default function ProfilePage() {
     phone: '',
     unit_id: null as number | null,
     role: 'user',
+    service_type: '',
     address: '',
     city_id: null as number | null,
     in_reserves: false,
@@ -77,6 +78,7 @@ export default function ProfilePage() {
         phone: userData.phone || '',
         unit_id: currentUnitId || null,
         role: userData.profile?.role || 'user',
+        service_type: userData.profile?.service_type || '',
         address: userData.profile?.address || '',
         city_id: userData.profile?.city || null,
         in_reserves: false, // TODO: Add reserves field to model
@@ -273,6 +275,7 @@ export default function ProfilePage() {
       if (profile && profile.id) {
         const profileUpdateData: any = {
           unit: finalUnitId,
+          service_type: formData.service_type,
           address: formData.address,
           city: formData.city_id,
           // Include user fields in profile update
@@ -488,6 +491,25 @@ export default function ProfilePage() {
                 </select>
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+              סוג שירות <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.service_type}
+              onChange={(e) => setFormData({ ...formData, service_type: e.target.value })}
+              className="w-full px-4 py-2 border rounded-lg text-right"
+              required
+            >
+              <option value="">-- בחר סוג שירות --</option>
+              <option value="חובה">חובה</option>
+              <option value="קבע">קבע</option>
+              <option value="יועץ">יועץ</option>
+              <option value="אעצ">אעצ</option>
+              <option value="מילואים">מילואים</option>
+            </select>
           </div>
 
           <div>

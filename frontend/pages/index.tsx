@@ -17,6 +17,7 @@ export default function Home() {
   const [branchId, setBranchId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [teamId, setTeamId] = useState<number | null>(null);
+  const [serviceType, setServiceType] = useState('');
   const [address, setAddress] = useState('');
   const [cityId, setCityId] = useState<number | null>(null);
   const [contactName, setContactName] = useState('');
@@ -233,7 +234,7 @@ export default function Home() {
     setSuccess('');
 
     // Validate all required fields
-    if (!firstName || !lastName || !email || !phone || !address || !cityId || !contactName || !contactPhone) {
+    if (!firstName || !lastName || !email || !phone || !serviceType || !address || !cityId || !contactName || !contactPhone) {
       setError('כל השדות המסומנים ב-* חייבים להיות ממולאים');
       setLoading(false);
       return;
@@ -257,6 +258,7 @@ export default function Home() {
         last_name: lastName,
         phone,
         unit_id: finalUnitId,
+        service_type: serviceType,
         address: address,
         city_id: cityId,
         contact_name: contactName,
@@ -276,6 +278,7 @@ export default function Home() {
       setBranches([]);
       setSections([]);
       setTeams([]);
+      setServiceType('');
       setAddress('');
       setCityId(null);
     } catch (err: any) {
@@ -582,6 +585,30 @@ export default function Home() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-right text-sm font-medium mb-2 text-gray-700">
+                סוג שירות <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={serviceType}
+                onChange={(e) => setServiceType(e.target.value)}
+                required
+                className={`w-full px-4 py-2 border rounded-lg text-right ${
+                  fieldErrors.serviceType ? 'border-red-500' : ''
+                }`}
+              >
+                <option value="">-- בחר סוג שירות --</option>
+                <option value="חובה">חובה</option>
+                <option value="קבע">קבע</option>
+                <option value="יועץ">יועץ</option>
+                <option value="אעצ">אעצ</option>
+                <option value="מילואים">מילואים</option>
+              </select>
+              {fieldErrors.serviceType && (
+                <p className="text-red-500 text-sm mt-1 text-right">{fieldErrors.serviceType}</p>
+              )}
             </div>
 
             <div>

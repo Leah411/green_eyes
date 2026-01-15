@@ -83,9 +83,18 @@ class Profile(models.Model):
         ('system_manager', 'System Manager'),
     ]
     
+    SERVICE_TYPE_CHOICES = [
+        ('חובה', 'חובה'),
+        ('קבע', 'קבע'),
+        ('יועץ', 'יועץ'),
+        ('אעצ', 'אעצ'),
+        ('מילואים', 'מילואים'),
+    ]
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     unit = models.ForeignKey(Unit, null=True, blank=True, on_delete=models.SET_NULL, related_name='members')
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='user')
+    service_type = models.CharField(max_length=20, choices=SERVICE_TYPE_CHOICES, blank=True, help_text="סוג שירות")
     address = models.CharField(max_length=200, blank=True, help_text="כתובת מגורים")
     city = models.ForeignKey('Location', null=True, blank=True, on_delete=models.SET_NULL, related_name='residents', help_text="עיר מגורים")
     contact_name = models.CharField(max_length=100, blank=True, help_text="שם איש קשר")
