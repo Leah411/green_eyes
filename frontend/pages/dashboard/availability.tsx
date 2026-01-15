@@ -243,16 +243,16 @@ export default function AvailabilityDashboard() {
       });
       
       // Filter users by selected units/branches/sections/teams
-      // Only show users that belong DIRECTLY to the selected units (no descendants)
+      // אם בוחרים רק ענף - מסתננים משתמשים שיש להם את הענף הזה ב-DB
+      // אם בוחרים ענף + מדור - מסתננים משתמשים שיש להם גם את הענף וגם את המדור
+      // אם בוחרים ענף + מדור + צוות - מסתננים משתמשים שיש להם את כל השלושה
       let usersToShow = allUsers;
       
-      if (selectedUnitIds.length > 0 && allUnits.length > 0) {
-        // Create a set of selected unit IDs for fast lookup
-        const selectedUnitIdsSet = new Set<number>(selectedUnitIds);
-        
-        console.log('Filtering users:', {
-          selectedUnitIds: Array.from(selectedUnitIds),
-          filterLevel: filterLevel,
+      if ((selectedBranches.size > 0 || selectedSections.size > 0 || selectedTeams.size > 0) && allUnits.length > 0) {
+        console.log('Filtering users by hierarchical structure:', {
+          selectedBranches: Array.from(selectedBranches),
+          selectedSections: Array.from(selectedSections),
+          selectedTeams: Array.from(selectedTeams),
           totalUsers: allUsers.length,
           allUnitsCount: allUnits.length
         });
@@ -265,8 +265,80 @@ export default function AvailabilityDashboard() {
           
           if (!userUnitId) return false;
           
-          // Check if user's unit is directly in the selected units set (direct match only, no descendants)
-          return selectedUnitIdsSet.has(userUnitId);
+          // Find the user's unit object
+          const userUnit = allUnits.find((u: any) => u.id === userUnitId);
+          if (!userUnit) return false;
+          
+          // Helper function to get all ancestors of a unit
+          const getAncestors = (unitId: number): number[] => {
+            const ancestors: number[] = [];
+            let current = allUnits.find((u: any) => u.id === unitId);
+            while (current && current.parent) {
+              const parentId = typeof current.parent === 'object' ? current.parent?.id : current.parent;
+              if (parentId) {
+                ancestors.push(parentId);
+                current = allUnits.find((u: any) => u.id === parentId);
+              } else {
+                break;
+              }
+            }
+            return ancestors;
+          };
+          
+          // Get all ancestors of the user's unit
+          const userUnitAncestors = getAncestors(userUnitId);
+          const userUnitHierarchy = [userUnitId, ...userUnitAncestors];
+          
+          // Check if user matches all selected levels
+          // If teams are selected, user must be in one of the selected teams
+          if (selectedTeams.size > 0) {
+            if (!selectedTeams.has(userUnitId)) return false;
+            // Also check that the team's ancestors match selected sections and branches
+            if (selectedSections.size > 0) {
+              const userSection = userUnitAncestors.find((id: number) => {
+                const unit = allUnits.find((u: any) => u.id === id);
+                return unit && unit.unit_type === 'section';
+              });
+              if (!userSection || !selectedSections.has(userSection)) return false;
+            }
+            if (selectedBranches.size > 0) {
+              const userBranch = userUnitAncestors.find((id: number) => {
+                const unit = allUnits.find((u: any) => u.id === id);
+                return unit && unit.unit_type === 'branch';
+              });
+              if (!userBranch || !selectedBranches.has(userBranch)) return false;
+            }
+            return true;
+          }
+          
+          // If sections are selected, user must be in one of the selected sections or their teams
+          if (selectedSections.size > 0) {
+            const userSection = userUnitHierarchy.find((id: number) => {
+              const unit = allUnits.find((u: any) => u.id === id);
+              return unit && unit.unit_type === 'section';
+            });
+            if (!userSection || !selectedSections.has(userSection)) return false;
+            // Also check branches if selected
+            if (selectedBranches.size > 0) {
+              const userBranch = userUnitAncestors.find((id: number) => {
+                const unit = allUnits.find((u: any) => u.id === id);
+                return unit && unit.unit_type === 'branch';
+              });
+              if (!userBranch || !selectedBranches.has(userBranch)) return false;
+            }
+            return true;
+          }
+          
+          // If only branches are selected, user must be in one of the selected branches or their descendants
+          if (selectedBranches.size > 0) {
+            const userBranch = userUnitHierarchy.find((id: number) => {
+              const unit = allUnits.find((u: any) => u.id === id);
+              return unit && unit.unit_type === 'branch';
+            });
+            return userBranch ? selectedBranches.has(userBranch) : false;
+          }
+          
+          return false;
         });
         
         console.log('Filtered users count:', usersToShow.length, 'out of', allUsers.length);
@@ -706,20 +778,37 @@ export default function AvailabilityDashboard() {
     }
   };
   
-  // Get available options - always show all options regardless of filtering
-  // הרשימות הנפתחות תמיד מציגות את כל האפשרויות, גם כשמסננים
+  // Get available options based on hierarchical selection
+  // כשבוחרים ענף - האפשרויות היחידות הן מדורים תחת אותו ענף
+  // כשבוחרים מדור - האפשרויות היחידות הן צוותים תחת אותו מדור
   const getAvailableBranches = () => {
-    // תמיד הצג את כל הענפים, ללא קשר לסינון
+    // תמיד הצג את כל הענפים
     return branches;
   };
   
   const getAvailableSections = () => {
-    // תמיד הצג את כל המדורים, ללא קשר לסינון
+    // אם יש ענפים נבחרים, הצג רק מדורים תחת אותם ענפים
+    if (selectedBranches.size > 0) {
+      const selectedBranchesList = Array.from(selectedBranches);
+      return sections.filter((section: any) => {
+        const sectionParentId = typeof section.parent === 'object' ? section.parent?.id : section.parent;
+        return selectedBranchesList.includes(sectionParentId);
+      });
+    }
+    // אם אין ענפים נבחרים, הצג את כל המדורים
     return sections;
   };
   
   const getAvailableTeams = () => {
-    // תמיד הצג את כל הצוותים, ללא קשר לסינון
+    // אם יש מדורים נבחרים, הצג רק צוותים תחת אותם מדורים
+    if (selectedSections.size > 0) {
+      const selectedSectionsList = Array.from(selectedSections);
+      return teams.filter((team: any) => {
+        const teamParentId = typeof team.parent === 'object' ? team.parent?.id : team.parent;
+        return selectedSectionsList.includes(teamParentId);
+      });
+    }
+    // אם אין מדורים נבחרים, הצג את כל הצוותים
     return teams;
   };
 
