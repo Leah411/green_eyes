@@ -42,6 +42,10 @@ export default function AvailabilityDashboard() {
   // Status filter state (for arrows in table)
   const [statusFilter, setStatusFilter] = useState<string | null>(null); // null = all, 'red' = not filled, 'green' = filled
   
+  // Contact info popup state
+  const [selectedUserForContact, setSelectedUserForContact] = useState<any>(null);
+  const [showContactPopup, setShowContactPopup] = useState(false);
+  
   // Refs for dropdowns
   const unitsDropdownRef = useRef<HTMLDivElement>(null);
   const branchesDropdownRef = useRef<HTMLDivElement>(null);
@@ -294,6 +298,8 @@ export default function AvailabilityDashboard() {
           phone: user.phone,
           address: user.profile?.address,
           city: user.profile?.city_name_he || user.profile?.city_name,
+          contact_name: user.profile?.contact_name,
+          contact_phone: user.profile?.contact_phone,
           unit: user.profile?.unit ? {
             id: user.profile.unit,
             name: user.profile.unit_name,
@@ -1016,7 +1022,15 @@ export default function AvailabilityDashboard() {
                           {getStatusText(user.status, user.has_filled_report)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-medium">{fullName}</td>
+                      <td 
+                        className="px-6 py-4 text-right font-medium cursor-pointer hover:text-green-600 hover:underline"
+                        onClick={() => {
+                          setSelectedUserForContact(user);
+                          setShowContactPopup(true);
+                        }}
+                      >
+                        {fullName}
+                      </td>
                       <td className="px-6 py-4 text-right">{user.phone || '-'}</td>
                       <td className="px-6 py-4 text-right">{user.address || '-'}</td>
                       <td className="px-6 py-4 text-right">{user.city || '-'}</td>
@@ -1082,6 +1096,61 @@ export default function AvailabilityDashboard() {
 
       {/* Sidebar */}
       <Sidebar showSidebar={showSidebar} setShowSidebar={setShowSidebar} userRole={userRole} />
+
+      {/* Contact Info Popup */}
+      {showContactPopup && selectedUserForContact && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" dir="rtl">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6 border-b">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-right">פרטי איש קשר</h2>
+                <button
+                  onClick={() => {
+                    setShowContactPopup(false);
+                    setSelectedUserForContact(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם המשתמש:</label>
+                <p className="text-right bg-gray-50 p-2 rounded">
+                  {selectedUserForContact.first_name && selectedUserForContact.last_name 
+                    ? `${selectedUserForContact.first_name} ${selectedUserForContact.last_name}` 
+                    : selectedUserForContact.username || '-'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 text-right mb-1">שם איש קשר:</label>
+                <p className="text-right bg-gray-50 p-2 rounded">
+                  {selectedUserForContact.contact_name || '-'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 text-right mb-1">טלפון איש קשר:</label>
+                <p className="text-right bg-gray-50 p-2 rounded">
+                  {selectedUserForContact.contact_phone || '-'}
+                </p>
+              </div>
+              <div className="flex justify-end pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setShowContactPopup(false);
+                    setSelectedUserForContact(null);
+                  }}
+                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+                >
+                  סגור
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
