@@ -923,7 +923,7 @@ export default function PermissionsDashboard() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-right"
                         >
                           <option value="">-- בחר יחידה --</option>
-                          {units.map((unit) => (
+                          {allUnits.filter(u => u.unit_type === 'unit').map((unit) => (
                             <option key={unit.id} value={unit.id}>
                               {unit.name_he || unit.name}
                             </option>
